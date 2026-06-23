@@ -2,6 +2,8 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { createAppContext } from './app-context'
+import { registerIpc } from './ipc/register-ipc'
 
 function createWindow(): void {
   // Create the browser window.
@@ -16,6 +18,9 @@ function createWindow(): void {
       sandbox: false
     }
   })
+
+  const ctx = createAppContext(app.getPath('userData'))
+  registerIpc(ipcMain, mainWindow, ctx)
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
