@@ -7,9 +7,12 @@ interface ProgramsState {
   runtimes: Record<string, ProgramRuntime>
   load: () => Promise<void>
   applyRuntime: (rt: ProgramRuntime) => void
+  create: (p: Omit<Program, 'id'>) => Promise<void>
+  update: (p: Program) => Promise<void>
+  remove: (id: string) => Promise<void>
 }
 
-export const useProgramsStore = create<ProgramsState>((set) => ({
+export const useProgramsStore = create<ProgramsState>((set, get) => ({
   programs: [],
   runtimes: {},
   load: async () => {
@@ -23,4 +26,7 @@ export const useProgramsStore = create<ProgramsState>((set) => ({
   },
   applyRuntime: (rt) =>
     set((s) => ({ runtimes: { ...s.runtimes, [rt.programId]: rt } })),
+  create: async (p) => { await ipc.invoke('programs:create', p); await get().load() },
+  update: async (p) => { await ipc.invoke('programs:update', p); await get().load() },
+  remove: async (id) => { await ipc.invoke('programs:delete', id); await get().load() },
 }))

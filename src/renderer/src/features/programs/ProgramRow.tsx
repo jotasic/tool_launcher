@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useProgramsStore } from '../../stores/programs'
 import { ipc } from '../../lib/ipc'
 import { LogPanel } from '../logs/LogPanel'
+import { ProgramForm } from './ProgramForm'
 import type { Program, ProgramStatus } from '../../../../shared/types'
 
 const badge: Record<ProgramStatus, string> = {
@@ -32,6 +33,8 @@ export function ProgramRow({ program }: { program: Program }) {
           {running ? '정지' : '시작'}
         </button>
         <button className="text-sm text-gray-600" onClick={() => setShowLog((v) => !v)}>로그</button>
+        <ProgramForm existing={program} trigger={<button className="text-sm text-gray-600">편집</button>} />
+        <button className="text-sm text-red-600" onClick={() => useProgramsStore.getState().remove(program.id)}>삭제</button>
       </div>
       {showLog && <LogPanel programId={program.id} />}
     </li>
