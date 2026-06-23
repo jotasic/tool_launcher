@@ -55,6 +55,29 @@ describe('ProcessManager.stop', () => {
     await pm.stop('a')
     expect(pm.getRuntime('a').status).toBe('stopped')
     expect(killed[0]![1]).toBe('SIGTERM')
+    // graceful path: SIGKILL must NOT have fired
+    expect(killed).toHaveLength(1)
+  })
+
+  it('kills processes in reverse start order', async () => {
+    const { deps, children } = makeFakeDeps()
+    const killedPids: number[] = []
+    deps.killTree = async (pid, sig) => {
+      killedPids.push(pid)
+      children.find((c) => c.pid === pid)?.emitExit(0, sig)
+    }
+    const pm = new ProcessManager(new LogStore(100), deps, { stopGraceMs: 50 })
+    await pm.start(prog({
+      processes: [
+        { name: 'first', command: 'node', args: ['first.js'], order: 0 },
+        { name: 'second', command: 'node', args: ['second.js'], order: 1 },
+      ],
+    }))
+    // children[0] = first-started (order 0), children[1] = second-started (order 1)
+    await pm.stop('a')
+    expect(killedPids).toHaveLength(2)
+    expect(killedPids[0]).toBe(children[1]!.pid) // second-started killed first
+    expect(killedPids[1]).toBe(children[0]!.pid) // first-started killed last
   })
 
   it('escalates to SIGKILL if process ignores SIGTERM', async () => {
