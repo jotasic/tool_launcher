@@ -3,7 +3,20 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { createAppContext } from './app-context'
+import type { AppContext } from './app-context'
 import { registerIpc } from './ipc/register-ipc'
+import { setupTray } from './tray'
+
+// AppContext singleton — created once, shared across tray / IPC / before-quit
+let appCtx: AppContext | null = null
+let isQuitting = false
+
+function getAppContext(): AppContext {
+  if (!appCtx) {
+    appCtx = createAppContext(app.getPath('userData'))
+  }
+  return appCtx
+}
 
 function createWindow(): void {
   // Create the browser window.
@@ -19,8 +32,16 @@ function createWindow(): void {
     }
   })
 
-  const ctx = createAppContext(app.getPath('userData'))
+  const ctx = getAppContext()
   registerIpc(ipcMain, mainWindow, ctx)
+  setupTray(mainWindow, ctx)
+
+  mainWindow.on('close', (e) => {
+    if (!isQuitting) {
+      e.preventDefault()
+      mainWindow.hide()
+    }
+  })
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -60,20 +81,34 @@ app.whenReady().then(() => {
   createWindow()
 
   app.on('activate', function () {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    // On macOS re-show the existing window when dock icon is clicked.
+    // We do NOT call createWindow() again — the window is hidden, not destroyed.
+    const wins = BrowserWindow.getAllWindows()
+    if (wins.length > 0) {
+      wins[0]?.show()
+    } else {
+      createWindow()
+    }
   })
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
+// Keep app alive in tray — do NOT auto-quit when window is closed.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  /* tray keeps app alive: do not quit */
 })
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
+app.on('before-quit', async (e) => {
+  if (isQuitting) return
+  e.preventDefault()
+  isQuitting = true
+  const ctx = appCtx
+  if (ctx) {
+    for (const p of ctx.store.listPrograms()) {
+      const s = ctx.processes.getRuntime(p.id).status
+      if (s === 'running' || s === 'starting') {
+        await ctx.processes.stop(p.id)
+      }
+    }
+  }
+  app.quit()
+})
