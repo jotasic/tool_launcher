@@ -21,6 +21,7 @@ export function makeFakeDeps(): { deps: ProcessDeps; children: FakeChild[] } {
     spawn: () => { const c = new FakeChild(); children.push(c); return c },
     killTree: async () => {},
     now: () => 0,
+    delay: async () => {},
   }
   return { deps, children }
 }

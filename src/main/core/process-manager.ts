@@ -13,6 +13,7 @@ export interface ProcessDeps {
   spawn: (command: string, args: string[], opts: { cwd?: string; env?: NodeJS.ProcessEnv; detached?: boolean }) => ChildLike
   killTree: (pid: number, signal: string) => Promise<void>
   now: () => number
+  delay: (ms: number) => Promise<void>
 }
 
 interface RunningProc {
@@ -91,8 +92,19 @@ export class ProcessManager {
         })
         this.pipe(program.id, spec, child)
         const running: RunningProc = { spec, child, stopping: false }
-        child.on('exit', () => { running.exited = true })
+        child.on('exit', (code) => {
+          running.exited = true
+          if (!running.stopping) {
+            this.setStatus(program.id, {
+              status: 'error',
+              error: `process ${spec.name} exited unexpectedly (code ${code})`,
+            })
+          }
+        })
         this.states.get(program.id)!.procs.push(running)
+        if (spec.startDelayMs && spec.startDelayMs > 0) {
+          await this.deps.delay(spec.startDelayMs)
+        }
       }
       this.setStatus(program.id, { status: 'running', error: undefined })
     } catch (err) {

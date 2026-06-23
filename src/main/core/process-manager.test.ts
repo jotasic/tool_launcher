@@ -41,6 +41,38 @@ describe('ProcessManager.start (single process)', () => {
   })
 })
 
+describe('ProcessManager multi-process and crash', () => {
+  it('starts processes in order', async () => {
+    const { deps } = makeFakeDeps()
+    const order: string[] = []
+    const realSpawn = deps.spawn
+    deps.spawn = (cmd, args, opts) => { order.push(cmd); return realSpawn(cmd, args, opts) }
+    const pm = new ProcessManager(new LogStore(100), deps)
+    await pm.start(prog({ processes: [
+      { name: 'b', command: 'second', order: 1 },
+      { name: 'a', command: 'first', order: 0 },
+    ] }))
+    expect(order).toEqual(['first', 'second'])
+  })
+
+  it('marks program error when a process crashes unexpectedly', async () => {
+    const { deps, children } = makeFakeDeps()
+    const pm = new ProcessManager(new LogStore(100), deps)
+    await pm.start(prog())
+    children[0]!.emitExit(1, null) // 종료 요청 없이 죽음
+    expect(pm.getRuntime('a').status).toBe('error')
+  })
+
+  it('does NOT mark error when process exits during stop', async () => {
+    const { deps, children } = makeFakeDeps()
+    deps.killTree = async (pid) => { children.find((c) => c.pid === pid)?.emitExit(0, 'SIGTERM') }
+    const pm = new ProcessManager(new LogStore(100), deps, { stopGraceMs: 50 })
+    await pm.start(prog())
+    await pm.stop('a')
+    expect(pm.getRuntime('a').status).toBe('stopped')
+  })
+})
+
 describe('ProcessManager.stop', () => {
   it('kills processes and transitions to stopped', async () => {
     const { deps, children } = makeFakeDeps()
