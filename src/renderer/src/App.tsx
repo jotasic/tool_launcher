@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import { useProgramsStore } from './stores/programs'
 import { ipc } from './lib/ipc'
 import { ProgramList } from './features/programs/ProgramList'
+import { SettingsDialog } from './features/settings/SettingsDialog'
+import { Button } from '@/components/ui/button'
 
 export default function App() {
   const load = useProgramsStore((s) => s.load)
@@ -15,7 +17,10 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 text-gray-900">
-      <header className="px-4 py-3 border-b font-semibold">Tool Launcher</header>
+      <header className="px-4 py-3 border-b font-semibold flex items-center justify-between">
+        <span>Tool Launcher</span>
+        <SettingsDialog trigger={<Button variant="outline" size="sm">설정</Button>} />
+      </header>
       <main className="flex-1 overflow-auto p-4">
         <ProgramList />
       </main>
