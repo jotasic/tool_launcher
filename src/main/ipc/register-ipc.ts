@@ -20,7 +20,9 @@ export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContex
   ipcMain.handle('programs:stop', async (_e, id: string) => { await processes.stop(id) })
   ipcMain.handle('programs:open', async (_e, id: string) => {
     const target = processes.getRuntime(id).resolvedOpenTarget
-    if (target) await shell.openExternal(target)
+    if (!target) return
+    if (/^https?:\/\//.test(target)) await shell.openExternal(target)
+    else await shell.openPath(target)
   })
 
   ipcMain.handle('runtime:list', () =>
@@ -40,5 +42,9 @@ export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContex
   })
   logs.subscribe((lines) => {
     if (!win.isDestroyed()) win.webContents.send('logs:appended', lines)
+  })
+  processes.onOpenRequested(async (_id, target) => {
+    if (/^https?:\/\//.test(target)) await shell.openExternal(target)
+    else await shell.openPath(target)
   })
 }

@@ -16,12 +16,14 @@ export interface IpcApi {
   'settings:get': () => Promise<Settings>
   'settings:set': (s: Settings) => Promise<Settings>
   'dialog:pickDirectory': () => Promise<string | null>
+  'git:clone': (req: { repoUrl: string; branch?: string; targetDir: string }) => Promise<void>
 }
 
 // event: main이 renderer로 푸시
 export interface IpcEvents {
   'runtime:changed': ProgramRuntime
   'logs:appended': LogLine[]
+  'git:progress': { text: string }
 }
 
 export const INVOKE_CHANNELS = [
@@ -30,8 +32,9 @@ export const INVOKE_CHANNELS = [
   'programs:import', 'programs:export',
   'runtime:list', 'logs:get',
   'settings:get', 'settings:set', 'dialog:pickDirectory',
+  'git:clone',
 ] as const satisfies ReadonlyArray<keyof IpcApi>
 
 export const EVENT_CHANNELS = [
-  'runtime:changed', 'logs:appended',
+  'runtime:changed', 'logs:appended', 'git:progress',
 ] as const satisfies ReadonlyArray<keyof IpcEvents>
