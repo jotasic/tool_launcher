@@ -15,7 +15,18 @@ export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContex
 
   ipcMain.handle('programs:start', async (_e, id: string) => {
     const program = store.listPrograms().find((p) => p.id === id)
-    if (program) await processes.start(program)
+    if (!program) return
+    if (program.git?.autoPullOnStart) {
+      try {
+        await git.pull(program.workingDir, (line) => {
+          if (!win.isDestroyed()) win.webContents.send('git:progress', { text: line })
+        })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        if (!win.isDestroyed()) win.webContents.send('git:progress', { text: `git pull 실패: ${msg}` })
+      }
+    }
+    await processes.start(program)
   })
   ipcMain.handle('programs:stop', async (_e, id: string) => { await processes.stop(id) })
   ipcMain.handle('programs:open', async (_e, id: string) => {
