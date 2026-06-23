@@ -73,6 +73,33 @@ describe('ProcessManager multi-process and crash', () => {
   })
 })
 
+describe('ProcessManager open resolution', () => {
+  it('sets resolvedOpenTarget for static url on start', async () => {
+    const { deps } = makeFakeDeps()
+    const pm = new ProcessManager(new LogStore(100), deps)
+    await pm.start(prog({ open: { mode: 'url', value: 'http://localhost:3000', autoOpenOnStart: false } }))
+    expect(pm.getRuntime('a').resolvedOpenTarget).toBe('http://localhost:3000')
+  })
+
+  it('detects url from logs in url-from-log mode', async () => {
+    const { deps, children } = makeFakeDeps()
+    const pm = new ProcessManager(new LogStore(100), deps)
+    await pm.start(prog({ open: { mode: 'url-from-log', autoOpenOnStart: false } }))
+    children[0]!.emitStdout('Running on http://127.0.0.1:8501\n')
+    expect(pm.getRuntime('a').resolvedOpenTarget).toBe('http://127.0.0.1:8501')
+  })
+
+  it('fires onOpenRequested once when autoOpenOnStart and target resolves', async () => {
+    const { deps, children } = makeFakeDeps()
+    const pm = new ProcessManager(new LogStore(100), deps)
+    const opened: string[] = []
+    pm.onOpenRequested((_id, target) => opened.push(target))
+    await pm.start(prog({ open: { mode: 'url-from-log', autoOpenOnStart: true } }))
+    children[0]!.emitStdout('http://127.0.0.1:8501\nhttp://127.0.0.1:9999\n')
+    expect(opened).toEqual(['http://127.0.0.1:8501'])
+  })
+})
+
 describe('ProcessManager.stop', () => {
   it('kills processes and transitions to stopped', async () => {
     const { deps, children } = makeFakeDeps()

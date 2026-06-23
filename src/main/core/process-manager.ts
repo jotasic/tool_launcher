@@ -1,5 +1,6 @@
 import type { LogStore } from './log-store'
-import type { Program, ProcessSpec, ProgramRuntime, ProgramStatus, LogLine } from '../../shared/types'
+import type { Program, ProcessSpec, ProgramRuntime, ProgramStatus, LogLine, OpenSpec } from '../../shared/types'
+import { resolveStaticOpen, matchUrlFromLog } from './open-resolver'
 
 export interface ChildLike {
   pid?: number
@@ -28,6 +29,8 @@ interface ProgramState {
   error?: string
   resolvedOpenTarget?: string
   procs: RunningProc[]
+  open?: OpenSpec
+  openDone?: boolean
 }
 
 export class ProcessManager {
@@ -35,12 +38,14 @@ export class ProcessManager {
   private listeners = new Set<(rt: ProgramRuntime) => void>()
 
   private stopGraceMs: number
+  private defaultLogPattern: string
   constructor(
     private logs: LogStore,
     private deps: ProcessDeps,
-    opts?: { stopGraceMs?: number },
+    opts?: { stopGraceMs?: number; defaultLogPattern?: string },
   ) {
     this.stopGraceMs = opts?.stopGraceMs ?? 5000
+    this.defaultLogPattern = opts?.defaultLogPattern ?? 'https?://[^\\s]+'
   }
 
   getRuntime(programId: string): ProgramRuntime {
@@ -58,6 +63,18 @@ export class ProcessManager {
     return () => this.listeners.delete(cb)
   }
 
+  private openListeners = new Set<(programId: string, target: string) => void>()
+  onOpenRequested(cb: (programId: string, target: string) => void): () => void {
+    this.openListeners.add(cb)
+    return () => this.openListeners.delete(cb)
+  }
+  private requestOpen(programId: string, target: string): void {
+    const st = this.states.get(programId)
+    if (!st || st.openDone) return
+    st.openDone = true
+    for (const cb of this.openListeners) cb(programId, target)
+  }
+
   private setStatus(programId: string, patch: Partial<ProgramState>): void {
     const st = this.states.get(programId)
     if (!st) return
@@ -72,15 +89,36 @@ export class ProcessManager {
   private pipe(programId: string, spec: ProcessSpec, child: ChildLike): void {
     const onData = (stream: 'stdout' | 'stderr') => (chunk: Buffer | string) => {
       const lines = chunk.toString().split('\n')
-      for (const l of lines) if (l.length > 0) this.log(programId, spec.name, stream, l)
+      for (const l of lines) if (l.length > 0) {
+        this.log(programId, spec.name, stream, l)
+        this.maybeDetectUrl(programId, l)
+      }
     }
     child.stdout?.on('data', onData('stdout'))
     child.stderr?.on('data', onData('stderr'))
   }
 
+  private maybeDetectUrl(programId: string, line: string): void {
+    const st = this.states.get(programId)
+    if (!st || st.open?.mode !== 'url-from-log' || st.resolvedOpenTarget) return
+    const pattern = st.open.logPattern || this.defaultLogPattern
+    const found = matchUrlFromLog(line, pattern)
+    if (found) {
+      this.setStatus(programId, { resolvedOpenTarget: found })
+      if (st.open.autoOpenOnStart) this.requestOpen(programId, found)
+    }
+  }
+
   async start(program: Program): Promise<void> {
-    this.states.set(program.id, { status: 'starting', procs: [] })
+    const staticTarget = resolveStaticOpen(program.open)
+    this.states.set(program.id, {
+      status: 'starting', procs: [], open: program.open,
+      resolvedOpenTarget: staticTarget,
+    })
     this.setStatus(program.id, {})
+    if (staticTarget && program.open?.autoOpenOnStart) {
+      this.requestOpen(program.id, staticTarget)
+    }
 
     const ordered = [...program.processes].sort((a, b) => a.order - b.order)
     try {
