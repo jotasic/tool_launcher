@@ -4,7 +4,7 @@ import type { AppContext } from '../app-context'
 import type { Program } from '../../shared/types'
 
 export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContext): void {
-  const { store, processes, logs } = ctx
+  const { store, processes, logs, git } = ctx
 
   ipcMain.handle('programs:list', () => store.listPrograms())
   ipcMain.handle('programs:create', (_e, p: Omit<Program, 'id'>) => store.createProgram(p))
@@ -31,6 +31,12 @@ export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContex
 
   ipcMain.handle('settings:get', () => store.getSettings())
   ipcMain.handle('settings:set', (_e, s) => store.setSettings(s))
+
+  ipcMain.handle('git:clone', async (_e, req: { repoUrl: string; branch?: string; targetDir: string }) => {
+    await git.clone(req, (line) => {
+      if (!win.isDestroyed()) win.webContents.send('git:progress', { text: line })
+    })
+  })
 
   ipcMain.handle('dialog:pickDirectory', async () => {
     const res = await dialog.showOpenDialog(win, { properties: ['openDirectory'] })

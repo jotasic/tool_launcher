@@ -2,11 +2,13 @@ import { Store } from './core/store'
 import { LogStore } from './core/log-store'
 import { ProcessManager } from './core/process-manager'
 import { createRealDeps } from './core/real-deps'
+import { GitService, createGitRunner } from './core/git-service'
 
 export interface AppContext {
   store: Store
   logs: LogStore
   processes: ProcessManager
+  git: GitService
 }
 
 export function createAppContext(userDataDir: string): AppContext {
@@ -14,5 +16,6 @@ export function createAppContext(userDataDir: string): AppContext {
   const settings = store.getSettings()
   const logs = new LogStore(settings.logBufferLines)
   const processes = new ProcessManager(logs, createRealDeps())
-  return { store, logs, processes }
+  const git = new GitService(createGitRunner())
+  return { store, logs, processes, git }
 }
