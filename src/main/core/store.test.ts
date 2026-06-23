@@ -32,7 +32,7 @@ describe('Store', () => {
     const s = newStore()
     const p = s.createProgram(sample)
     s.updateProgram({ ...p, name: 'Renamed' })
-    expect(s.listPrograms()[0].name).toBe('Renamed')
+    expect(s.listPrograms()[0]!.name).toBe('Renamed')
   })
 
   it('deletes a program', () => {

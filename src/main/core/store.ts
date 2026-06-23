@@ -9,7 +9,7 @@ export class Store {
   private settingsFile: string
 
   constructor(
-    private baseDir: string,
+    baseDir: string,
     private idgen: () => string = () => randomUUID(),
   ) {
     if (!existsSync(baseDir)) mkdirSync(baseDir, { recursive: true })
