@@ -13,7 +13,7 @@ const processSpecSchema = z.object({
   command: z.string().min(1),
   args: z.array(z.string()).optional(),
   cwd: z.string().optional(),
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
   order: z.number().int(),
   startDelayMs: z.number().int().nonnegative().optional(),
 })

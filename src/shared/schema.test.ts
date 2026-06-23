@@ -9,7 +9,7 @@ describe('parseProgram', () => {
       processes: [{ name: 'p1', command: 'echo', order: 0 }],
     })
     expect(p.name).toBe('X')
-    expect(p.processes[0].command).toBe('echo')
+    expect(p.processes[0]!.command).toBe('echo')
   })
 
   it('rejects a program with no processes', () => {

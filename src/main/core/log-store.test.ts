@@ -39,7 +39,7 @@ describe('LogStore', () => {
     await Promise.resolve()
     await Promise.resolve()
     expect(batches).toHaveLength(1)
-    expect(batches[0].map((l) => l.text)).toEqual(['1', '2'])
+    expect(batches[0]!.map((l) => l.text)).toEqual(['1', '2'])
   })
 
   it('stops notifying after unsubscribe', async () => {
