@@ -40,3 +40,31 @@ describe('ProcessManager.start (single process)', () => {
     expect(pm.getRuntime('a').error).toContain('ENOENT')
   })
 })
+
+describe('ProcessManager.stop', () => {
+  it('kills processes and transitions to stopped', async () => {
+    const { deps, children } = makeFakeDeps()
+    const killed: Array<[number, string]> = []
+    deps.killTree = async (pid, sig) => {
+      killed.push([pid, sig])
+      // SIGTERM에 정상 종료되는 프로세스 흉내
+      children.find((c) => c.pid === pid)?.emitExit(0, sig)
+    }
+    const pm = new ProcessManager(new LogStore(100), deps, { stopGraceMs: 50 })
+    await pm.start(prog())
+    await pm.stop('a')
+    expect(pm.getRuntime('a').status).toBe('stopped')
+    expect(killed[0]![1]).toBe('SIGTERM')
+  })
+
+  it('escalates to SIGKILL if process ignores SIGTERM', async () => {
+    const { deps } = makeFakeDeps()
+    const signals: string[] = []
+    deps.killTree = async (_pid, sig) => { signals.push(sig) } // 절대 exit 안 함
+    const pm = new ProcessManager(new LogStore(100), deps, { stopGraceMs: 20 })
+    await pm.start(prog())
+    await pm.stop('a')
+    expect(signals).toContain('SIGTERM')
+    expect(signals).toContain('SIGKILL')
+  })
+})

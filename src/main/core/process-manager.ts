@@ -19,6 +19,7 @@ interface RunningProc {
   spec: ProcessSpec
   child: ChildLike
   stopping: boolean
+  exited?: boolean
 }
 
 interface ProgramState {
@@ -32,7 +33,14 @@ export class ProcessManager {
   private states = new Map<string, ProgramState>()
   private listeners = new Set<(rt: ProgramRuntime) => void>()
 
-  constructor(private logs: LogStore, private deps: ProcessDeps) {}
+  private stopGraceMs: number
+  constructor(
+    private logs: LogStore,
+    private deps: ProcessDeps,
+    opts?: { stopGraceMs?: number },
+  ) {
+    this.stopGraceMs = opts?.stopGraceMs ?? 5000
+  }
 
   getRuntime(programId: string): ProgramRuntime {
     const st = this.states.get(programId)
@@ -83,11 +91,36 @@ export class ProcessManager {
         })
         this.pipe(program.id, spec, child)
         const running: RunningProc = { spec, child, stopping: false }
+        child.on('exit', () => { running.exited = true })
         this.states.get(program.id)!.procs.push(running)
       }
       this.setStatus(program.id, { status: 'running', error: undefined })
     } catch (err) {
       this.setStatus(program.id, { status: 'error', error: (err as Error).message })
     }
+  }
+
+  async stop(programId: string): Promise<void> {
+    const st = this.states.get(programId)
+    if (!st || st.status === 'stopped') return
+    const reversed = [...st.procs].reverse()
+    for (const rp of reversed) {
+      rp.stopping = true
+      const pid = rp.child.pid
+      if (pid === undefined || rp.exited) continue
+      await this.deps.killTree(pid, 'SIGTERM')
+      const exited = await this.waitExit(rp, this.stopGraceMs)
+      if (!exited) await this.deps.killTree(pid, 'SIGKILL')
+    }
+    st.procs = []
+    this.setStatus(programId, { status: 'stopped', error: undefined })
+  }
+
+  private waitExit(rp: RunningProc, ms: number): Promise<boolean> {
+    if (rp.exited) return Promise.resolve(true)
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(false), ms)
+      rp.child.on('exit', () => { clearTimeout(timer); resolve(true) })
+    })
   }
 }
