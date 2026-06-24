@@ -7,12 +7,17 @@ export function LogPanel({ programId }: { programId: string }) {
 
   useEffect(() => {
     let active = true
-    ipc.invoke('logs:get', programId).then((l) => { if (active) setLines(l) })
+    ipc.invoke('logs:get', programId).then((l) => {
+      if (active) setLines(l)
+    })
     const off = ipc.on('logs:appended', (batch) => {
       const mine = batch.filter((l) => l.programId === programId)
       if (mine.length) setLines((prev) => [...prev, ...mine])
     })
-    return () => { active = false; off() }
+    return () => {
+      active = false
+      off()
+    }
   }, [programId])
 
   return (

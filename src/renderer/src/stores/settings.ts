@@ -11,5 +11,5 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>((set) => ({
   settings: null,
   load: async () => set({ settings: await ipc.invoke('settings:get') }),
-  save: async (s) => set({ settings: await ipc.invoke('settings:set', s) }),
+  save: async (s) => set({ settings: await ipc.invoke('settings:set', s) })
 }))

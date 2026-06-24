@@ -9,7 +9,7 @@ const badge: Record<ProgramStatus, string> = {
   stopped: 'bg-gray-300 text-gray-700',
   starting: 'bg-yellow-300 text-yellow-900',
   running: 'bg-green-400 text-green-950',
-  error: 'bg-red-400 text-red-950',
+  error: 'bg-red-400 text-red-950'
 }
 
 export function ProgramRow({ program }: { program: Program }) {
@@ -24,7 +24,12 @@ export function ProgramRow({ program }: { program: Program }) {
         <span className={`rounded px-2 py-0.5 text-xs ${badge[status]}`}>{status}</span>
         <span className="font-medium flex-1">{program.name}</span>
         {rt?.resolvedOpenTarget && (
-          <button className="text-blue-600 text-sm" onClick={() => ipc.invoke('programs:open', program.id)}>열기</button>
+          <button
+            className="text-blue-600 text-sm"
+            onClick={() => ipc.invoke('programs:open', program.id)}
+          >
+            열기
+          </button>
         )}
         <button
           className="rounded bg-gray-800 px-3 py-1 text-sm text-white"
@@ -32,9 +37,19 @@ export function ProgramRow({ program }: { program: Program }) {
         >
           {running ? '정지' : '시작'}
         </button>
-        <button className="text-sm text-gray-600" onClick={() => setShowLog((v) => !v)}>로그</button>
-        <ProgramForm existing={program} trigger={<button className="text-sm text-gray-600">편집</button>} />
-        <button className="text-sm text-red-600" onClick={() => useProgramsStore.getState().remove(program.id)}>삭제</button>
+        <button className="text-sm text-gray-600" onClick={() => setShowLog((v) => !v)}>
+          로그
+        </button>
+        <ProgramForm
+          existing={program}
+          trigger={<button className="text-sm text-gray-600">편집</button>}
+        />
+        <button
+          className="text-sm text-red-600"
+          onClick={() => useProgramsStore.getState().remove(program.id)}
+        >
+          삭제
+        </button>
       </div>
       {showLog && <LogPanel programId={program.id} />}
     </li>

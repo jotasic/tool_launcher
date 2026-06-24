@@ -10,7 +10,7 @@ export class Store {
 
   constructor(
     baseDir: string,
-    private idgen: () => string = () => randomUUID(),
+    private idgen: () => string = () => randomUUID()
   ) {
     if (!existsSync(baseDir)) mkdirSync(baseDir, { recursive: true })
     this.programsFile = join(baseDir, 'programs.json')

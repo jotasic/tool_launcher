@@ -23,12 +23,15 @@ export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContex
         })
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        if (!win.isDestroyed()) win.webContents.send('git:progress', { text: `git pull 실패: ${msg}` })
+        if (!win.isDestroyed())
+          win.webContents.send('git:progress', { text: `git pull 실패: ${msg}` })
       }
     }
     await processes.start(program)
   })
-  ipcMain.handle('programs:stop', async (_e, id: string) => { await processes.stop(id) })
+  ipcMain.handle('programs:stop', async (_e, id: string) => {
+    await processes.stop(id)
+  })
   ipcMain.handle('programs:open', async (_e, id: string) => {
     const target = processes.getRuntime(id).resolvedOpenTarget
     if (!target) return
@@ -36,18 +39,20 @@ export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContex
     else await shell.openPath(target)
   })
 
-  ipcMain.handle('runtime:list', () =>
-    store.listPrograms().map((p) => processes.getRuntime(p.id)))
+  ipcMain.handle('runtime:list', () => store.listPrograms().map((p) => processes.getRuntime(p.id)))
   ipcMain.handle('logs:get', (_e, programId: string) => logs.get(programId))
 
   ipcMain.handle('settings:get', () => store.getSettings())
   ipcMain.handle('settings:set', (_e, s) => store.setSettings(s))
 
-  ipcMain.handle('git:clone', async (_e, req: { repoUrl: string; branch?: string; targetDir: string }) => {
-    await git.clone(req, (line) => {
-      if (!win.isDestroyed()) win.webContents.send('git:progress', { text: line })
-    })
-  })
+  ipcMain.handle(
+    'git:clone',
+    async (_e, req: { repoUrl: string; branch?: string; targetDir: string }) => {
+      await git.clone(req, (line) => {
+        if (!win.isDestroyed()) win.webContents.send('git:progress', { text: line })
+      })
+    }
+  )
 
   ipcMain.handle('dialog:pickDirectory', async () => {
     const res = await dialog.showOpenDialog(win, { properties: ['openDirectory'] })

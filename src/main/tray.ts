@@ -18,7 +18,7 @@ export function setupTray(win: BrowserWindow, ctx: AppContext): Tray {
       { label: '창 열기', click: () => win.show() },
       { label: `실행 중: ${runningCount()}개`, enabled: false },
       { type: 'separator' },
-      { label: '종료', click: () => app.quit() },
+      { label: '종료', click: () => app.quit() }
     ])
     tray.setContextMenu(menu)
   }

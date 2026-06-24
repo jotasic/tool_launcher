@@ -27,14 +27,25 @@ export interface IpcEvents {
 }
 
 export const INVOKE_CHANNELS = [
-  'programs:list', 'programs:create', 'programs:update', 'programs:delete',
-  'programs:start', 'programs:stop', 'programs:open',
-  'programs:import', 'programs:export',
-  'runtime:list', 'logs:get',
-  'settings:get', 'settings:set', 'dialog:pickDirectory',
-  'git:clone',
+  'programs:list',
+  'programs:create',
+  'programs:update',
+  'programs:delete',
+  'programs:start',
+  'programs:stop',
+  'programs:open',
+  'programs:import',
+  'programs:export',
+  'runtime:list',
+  'logs:get',
+  'settings:get',
+  'settings:set',
+  'dialog:pickDirectory',
+  'git:clone'
 ] as const satisfies ReadonlyArray<keyof IpcApi>
 
 export const EVENT_CHANNELS = [
-  'runtime:changed', 'logs:appended', 'git:progress',
+  'runtime:changed',
+  'logs:appended',
+  'git:progress'
 ] as const satisfies ReadonlyArray<keyof IpcEvents>

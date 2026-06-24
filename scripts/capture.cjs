@@ -16,7 +16,7 @@ app.whenReady().then(async () => {
     width: 1000,
     height: 700,
     show: true,
-    webPreferences: { preload: PRELOAD, contextIsolation: true, nodeIntegration: false },
+    webPreferences: { preload: PRELOAD, contextIsolation: true, nodeIntegration: false }
   })
   await win.loadFile(RENDERER)
   await new Promise((r) => setTimeout(r, 1500))

@@ -60,5 +60,5 @@ export const DEFAULT_SETTINGS: Settings = {
   logBufferLines: 2000,
   logToFile: false,
   defaultLogPattern: 'https?://[^\\s]+',
-  theme: 'system',
+  theme: 'system'
 }

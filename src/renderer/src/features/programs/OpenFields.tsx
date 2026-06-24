@@ -3,7 +3,13 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import type { OpenSpec, OpenMode } from '../../../../shared/types'
 
-export function OpenFields({ value, onChange }: { value: OpenSpec; onChange: (v: OpenSpec) => void }) {
+export function OpenFields({
+  value,
+  onChange
+}: {
+  value: OpenSpec
+  onChange: (v: OpenSpec) => void
+}) {
   return (
     <div className="space-y-2 rounded border p-3">
       <Label>열기 동작</Label>
@@ -34,7 +40,10 @@ export function OpenFields({ value, onChange }: { value: OpenSpec; onChange: (v:
       )}
       {value.mode !== 'none' && (
         <label className="flex items-center gap-2 text-sm">
-          <Switch checked={value.autoOpenOnStart} onCheckedChange={(c) => onChange({ ...value, autoOpenOnStart: c })} />
+          <Switch
+            checked={value.autoOpenOnStart}
+            onCheckedChange={(c) => onChange({ ...value, autoOpenOnStart: c })}
+          />
           시작 시 자동 열기
         </label>
       )}

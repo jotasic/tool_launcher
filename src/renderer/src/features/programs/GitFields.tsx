@@ -5,7 +5,7 @@ import type { GitSpec } from '../../../../shared/types'
 
 export function GitFields({
   value,
-  onChange,
+  onChange
 }: {
   value: GitSpec | undefined
   onChange: (v: GitSpec | undefined) => void
@@ -22,7 +22,7 @@ export function GitFields({
       onChange({
         repoUrl: next.repoUrl,
         ...(next.branch ? { branch: next.branch } : {}),
-        ...(next.autoPullOnStart ? { autoPullOnStart: true } : {}),
+        ...(next.autoPullOnStart ? { autoPullOnStart: true } : {})
       })
     }
   }

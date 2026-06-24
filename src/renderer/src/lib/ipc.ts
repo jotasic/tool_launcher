@@ -4,7 +4,7 @@
 // still renders instead of throwing a white screen.
 const fallback = {
   invoke: async () => undefined,
-  on: () => () => {},
+  on: () => () => {}
 } as unknown as typeof window.api
 
 export const ipc: typeof window.api =

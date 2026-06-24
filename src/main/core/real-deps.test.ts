@@ -7,8 +7,10 @@ import type { Program } from '../../shared/types'
 
 const fixture = join(__dirname, '..', 'fixtures', 'dummy-server.cjs')
 const prog: Program = {
-  id: 'real', name: 'Dummy', workingDir: process.cwd(),
-  processes: [{ name: 'server', command: process.execPath, args: [fixture], order: 0 }],
+  id: 'real',
+  name: 'Dummy',
+  workingDir: process.cwd(),
+  processes: [{ name: 'server', command: process.execPath, args: [fixture], order: 0 }]
 }
 
 describe('createRealDeps (integration)', () => {

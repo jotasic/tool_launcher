@@ -9,11 +9,11 @@ export function createRealDeps(): ProcessDeps {
         cwd: opts.cwd,
         env: opts.env,
         detached: opts.detached,
-        shell: false,
+        shell: false
       }) as unknown as ChildLike,
     killTree: (pid, signal) =>
       new Promise<void>((resolve) => treeKill(pid, signal, () => resolve())),
     now: () => Date.now(),
-    delay: (ms) => new Promise((r) => setTimeout(r, ms)),
+    delay: (ms) => new Promise((r) => setTimeout(r, ms))
   }
 }

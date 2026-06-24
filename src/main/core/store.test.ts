@@ -6,12 +6,16 @@ import { Store } from './store'
 
 let dir: string
 let n: number
-beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'tl-')); n = 0 })
+beforeEach(() => {
+  dir = mkdtempSync(join(tmpdir(), 'tl-'))
+  n = 0
+})
 const newStore = () => new Store(dir, () => `id-${n++}`)
 
 const sample = {
-  name: 'Web', workingDir: '/tmp',
-  processes: [{ name: 'p', command: 'echo', order: 0 }],
+  name: 'Web',
+  workingDir: '/tmp',
+  processes: [{ name: 'p', command: 'echo', order: 0 }]
 }
 
 describe('Store', () => {

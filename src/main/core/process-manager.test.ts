@@ -5,9 +5,11 @@ import { makeFakeDeps } from './test-helpers'
 import type { Program } from '../../shared/types'
 
 const prog = (over: Partial<Program> = {}): Program => ({
-  id: 'a', name: 'X', workingDir: '/tmp',
+  id: 'a',
+  name: 'X',
+  workingDir: '/tmp',
   processes: [{ name: 'p1', command: 'node', args: ['x.js'], order: 0 }],
-  ...over,
+  ...over
 })
 
 describe('ProcessManager.start (single process)', () => {
@@ -33,7 +35,9 @@ describe('ProcessManager.start (single process)', () => {
 
   it('marks error if spawn throws', async () => {
     const { deps } = makeFakeDeps()
-    deps.spawn = () => { throw new Error('ENOENT') }
+    deps.spawn = () => {
+      throw new Error('ENOENT')
+    }
     const pm = new ProcessManager(new LogStore(100), deps)
     await pm.start(prog())
     expect(pm.getRuntime('a').status).toBe('error')
@@ -46,12 +50,19 @@ describe('ProcessManager multi-process and crash', () => {
     const { deps } = makeFakeDeps()
     const order: string[] = []
     const realSpawn = deps.spawn
-    deps.spawn = (cmd, args, opts) => { order.push(cmd); return realSpawn(cmd, args, opts) }
+    deps.spawn = (cmd, args, opts) => {
+      order.push(cmd)
+      return realSpawn(cmd, args, opts)
+    }
     const pm = new ProcessManager(new LogStore(100), deps)
-    await pm.start(prog({ processes: [
-      { name: 'b', command: 'second', order: 1 },
-      { name: 'a', command: 'first', order: 0 },
-    ] }))
+    await pm.start(
+      prog({
+        processes: [
+          { name: 'b', command: 'second', order: 1 },
+          { name: 'a', command: 'first', order: 0 }
+        ]
+      })
+    )
     expect(order).toEqual(['first', 'second'])
   })
 
@@ -65,7 +76,9 @@ describe('ProcessManager multi-process and crash', () => {
 
   it('does NOT mark error when process exits during stop', async () => {
     const { deps, children } = makeFakeDeps()
-    deps.killTree = async (pid) => { children.find((c) => c.pid === pid)?.emitExit(0, 'SIGTERM') }
+    deps.killTree = async (pid) => {
+      children.find((c) => c.pid === pid)?.emitExit(0, 'SIGTERM')
+    }
     const pm = new ProcessManager(new LogStore(100), deps, { stopGraceMs: 50 })
     await pm.start(prog())
     await pm.stop('a')
@@ -77,7 +90,9 @@ describe('ProcessManager open resolution', () => {
   it('sets resolvedOpenTarget for static url on start', async () => {
     const { deps } = makeFakeDeps()
     const pm = new ProcessManager(new LogStore(100), deps)
-    await pm.start(prog({ open: { mode: 'url', value: 'http://localhost:3000', autoOpenOnStart: false } }))
+    await pm.start(
+      prog({ open: { mode: 'url', value: 'http://localhost:3000', autoOpenOnStart: false } })
+    )
     expect(pm.getRuntime('a').resolvedOpenTarget).toBe('http://localhost:3000')
   })
 
@@ -126,12 +141,14 @@ describe('ProcessManager.stop', () => {
       children.find((c) => c.pid === pid)?.emitExit(0, sig)
     }
     const pm = new ProcessManager(new LogStore(100), deps, { stopGraceMs: 50 })
-    await pm.start(prog({
-      processes: [
-        { name: 'first', command: 'node', args: ['first.js'], order: 0 },
-        { name: 'second', command: 'node', args: ['second.js'], order: 1 },
-      ],
-    }))
+    await pm.start(
+      prog({
+        processes: [
+          { name: 'first', command: 'node', args: ['first.js'], order: 0 },
+          { name: 'second', command: 'node', args: ['second.js'], order: 1 }
+        ]
+      })
+    )
     // children[0] = first-started (order 0), children[1] = second-started (order 1)
     await pm.stop('a')
     expect(killedPids).toHaveLength(2)
@@ -142,7 +159,9 @@ describe('ProcessManager.stop', () => {
   it('escalates to SIGKILL if process ignores SIGTERM', async () => {
     const { deps } = makeFakeDeps()
     const signals: string[] = []
-    deps.killTree = async (_pid, sig) => { signals.push(sig) } // 절대 exit 안 함
+    deps.killTree = async (_pid, sig) => {
+      signals.push(sig)
+    } // 절대 exit 안 함
     const pm = new ProcessManager(new LogStore(100), deps, { stopGraceMs: 20 })
     await pm.start(prog())
     await pm.stop('a')

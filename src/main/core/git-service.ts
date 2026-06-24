@@ -1,7 +1,11 @@
 import { spawn } from 'node:child_process'
 
 export interface GitRunner {
-  run: (args: string[], opts: { cwd?: string }, onLine: (line: string) => void) => Promise<{ code: number }>
+  run: (
+    args: string[],
+    opts: { cwd?: string },
+    onLine: (line: string) => void
+  ) => Promise<{ code: number }>
 }
 
 export class GitService {
@@ -9,7 +13,7 @@ export class GitService {
 
   async clone(
     req: { repoUrl: string; branch?: string; targetDir: string },
-    onProgress: (line: string) => void,
+    onProgress: (line: string) => void
   ): Promise<void> {
     const args = ['clone']
     if (req.branch) args.push('--branch', req.branch)
@@ -35,6 +39,6 @@ export function createGitRunner(): GitRunner {
         child.stdout.on('data', handle)
         child.stderr.on('data', handle)
         child.on('exit', (code) => resolve({ code: code ?? 1 }))
-      }),
+      })
   }
 }

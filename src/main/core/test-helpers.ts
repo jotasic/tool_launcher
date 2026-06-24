@@ -11,17 +11,25 @@ export class FakeChild extends EventEmitter implements ChildLike {
     // 실제 종료는 테스트가 emit('exit')로 흉내냄
     return true
   }
-  emitStdout(text: string) { this.stdout.emit('data', Buffer.from(text)) }
-  emitExit(code: number | null, signal: string | null = null) { this.emit('exit', code, signal) }
+  emitStdout(text: string) {
+    this.stdout.emit('data', Buffer.from(text))
+  }
+  emitExit(code: number | null, signal: string | null = null) {
+    this.emit('exit', code, signal)
+  }
 }
 
 export function makeFakeDeps(): { deps: ProcessDeps; children: FakeChild[] } {
   const children: FakeChild[] = []
   const deps: ProcessDeps = {
-    spawn: () => { const c = new FakeChild(); children.push(c); return c },
+    spawn: () => {
+      const c = new FakeChild()
+      children.push(c)
+      return c
+    },
     killTree: async () => {},
     now: () => 0,
-    delay: async () => {},
+    delay: async () => {}
   }
   return { deps, children }
 }

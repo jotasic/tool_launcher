@@ -1,5 +1,12 @@
 import type { LogStore } from './log-store'
-import type { Program, ProcessSpec, ProgramRuntime, ProgramStatus, LogLine, OpenSpec } from '../../shared/types'
+import type {
+  Program,
+  ProcessSpec,
+  ProgramRuntime,
+  ProgramStatus,
+  LogLine,
+  OpenSpec
+} from '../../shared/types'
 import { resolveStaticOpen, matchUrlFromLog } from './open-resolver'
 
 export interface ChildLike {
@@ -11,7 +18,11 @@ export interface ChildLike {
 }
 
 export interface ProcessDeps {
-  spawn: (command: string, args: string[], opts: { cwd?: string; env?: NodeJS.ProcessEnv; detached?: boolean }) => ChildLike
+  spawn: (
+    command: string,
+    args: string[],
+    opts: { cwd?: string; env?: NodeJS.ProcessEnv; detached?: boolean }
+  ) => ChildLike
   killTree: (pid: number, signal: string) => Promise<void>
   now: () => number
   delay: (ms: number) => Promise<void>
@@ -42,7 +53,7 @@ export class ProcessManager {
   constructor(
     private logs: LogStore,
     private deps: ProcessDeps,
-    opts?: { stopGraceMs?: number; defaultLogPattern?: string },
+    opts?: { stopGraceMs?: number; defaultLogPattern?: string }
   ) {
     this.stopGraceMs = opts?.stopGraceMs ?? 5000
     this.defaultLogPattern = opts?.defaultLogPattern ?? 'https?://[^\\s]+'
@@ -54,7 +65,7 @@ export class ProcessManager {
       programId,
       status: st?.status ?? 'stopped',
       error: st?.error,
-      resolvedOpenTarget: st?.resolvedOpenTarget,
+      resolvedOpenTarget: st?.resolvedOpenTarget
     }
   }
 
@@ -82,17 +93,23 @@ export class ProcessManager {
     for (const cb of this.listeners) cb(this.getRuntime(programId))
   }
 
-  private log(programId: string, processName: string, stream: LogLine['stream'], text: string): void {
+  private log(
+    programId: string,
+    processName: string,
+    stream: LogLine['stream'],
+    text: string
+  ): void {
     this.logs.append({ programId, processName, stream, text, ts: this.deps.now() })
   }
 
   private pipe(programId: string, spec: ProcessSpec, child: ChildLike): void {
     const onData = (stream: 'stdout' | 'stderr') => (chunk: Buffer | string) => {
       const lines = chunk.toString().split('\n')
-      for (const l of lines) if (l.length > 0) {
-        this.log(programId, spec.name, stream, l)
-        this.maybeDetectUrl(programId, l)
-      }
+      for (const l of lines)
+        if (l.length > 0) {
+          this.log(programId, spec.name, stream, l)
+          this.maybeDetectUrl(programId, l)
+        }
     }
     child.stdout?.on('data', onData('stdout'))
     child.stderr?.on('data', onData('stderr'))
@@ -112,8 +129,10 @@ export class ProcessManager {
   async start(program: Program): Promise<void> {
     const staticTarget = resolveStaticOpen(program.open)
     this.states.set(program.id, {
-      status: 'starting', procs: [], open: program.open,
-      resolvedOpenTarget: staticTarget,
+      status: 'starting',
+      procs: [],
+      open: program.open,
+      resolvedOpenTarget: staticTarget
     })
     this.setStatus(program.id, {})
     if (staticTarget && program.open?.autoOpenOnStart) {
@@ -126,7 +145,7 @@ export class ProcessManager {
         const child = this.deps.spawn(spec.command, spec.args ?? [], {
           cwd: spec.cwd ?? program.workingDir,
           env: { ...process.env, ...spec.env },
-          detached: process.platform !== 'win32',
+          detached: process.platform !== 'win32'
         })
         this.pipe(program.id, spec, child)
         const running: RunningProc = { spec, child, stopping: false }
@@ -135,7 +154,7 @@ export class ProcessManager {
           if (!running.stopping) {
             this.setStatus(program.id, {
               status: 'error',
-              error: `process ${spec.name} exited unexpectedly (code ${code})`,
+              error: `process ${spec.name} exited unexpectedly (code ${code})`
             })
           }
         })
@@ -170,7 +189,10 @@ export class ProcessManager {
     if (rp.exited) return Promise.resolve(true)
     return new Promise((resolve) => {
       const timer = setTimeout(() => resolve(false), ms)
-      rp.child.on('exit', () => { clearTimeout(timer); resolve(true) })
+      rp.child.on('exit', () => {
+        clearTimeout(timer)
+        resolve(true)
+      })
     })
   }
 }

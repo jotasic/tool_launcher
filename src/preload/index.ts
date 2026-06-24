@@ -12,7 +12,7 @@ const api = {
     const listener = (_e: unknown, payload: unknown) => cb(payload)
     ipcRenderer.on(channel, listener)
     return () => ipcRenderer.removeListener(channel, listener)
-  },
+  }
 }
 
 contextBridge.exposeInMainWorld('api', api)

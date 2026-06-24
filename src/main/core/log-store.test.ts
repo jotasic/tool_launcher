@@ -3,7 +3,11 @@ import { LogStore } from './log-store'
 import type { LogLine } from '../../shared/types'
 
 const line = (programId: string, text: string): LogLine => ({
-  programId, processName: 'p', stream: 'stdout', text, ts: 0,
+  programId,
+  processName: 'p',
+  stream: 'stdout',
+  text,
+  ts: 0
 })
 
 describe('LogStore', () => {
@@ -45,7 +49,9 @@ describe('LogStore', () => {
   it('stops notifying after unsubscribe', async () => {
     const s = new LogStore(10)
     let count = 0
-    const off = s.subscribe(() => { count++ })
+    const off = s.subscribe(() => {
+      count++
+    })
     off()
     s.append(line('a', '1'))
     await Promise.resolve()
