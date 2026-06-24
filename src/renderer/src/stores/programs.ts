@@ -21,8 +21,8 @@ export const useProgramsStore = create<ProgramsState>((set, get) => ({
       ipc.invoke('runtime:list'),
     ])
     const runtimes: Record<string, ProgramRuntime> = {}
-    for (const rt of runtimeList) runtimes[rt.programId] = rt
-    set({ programs, runtimes })
+    for (const rt of runtimeList ?? []) runtimes[rt.programId] = rt
+    set({ programs: programs ?? [], runtimes })
   },
   applyRuntime: (rt) =>
     set((s) => ({ runtimes: { ...s.runtimes, [rt.programId]: rt } })),
