@@ -17,10 +17,10 @@ export function ProcessFields({ value, onChange }: { value: ProcessSpec[]; onCha
           <Input className="col-span-5" placeholder="명령 (예: python)" value={p.command} onChange={(e) => update(i, { command: e.target.value })} />
           <Input className="col-span-3" placeholder="인자 (공백구분)" value={(p.args ?? []).join(' ')} onChange={(e) => update(i, { args: e.target.value.split(' ').filter(Boolean) })} />
           <Input className="col-span-1" type="number" value={p.order} onChange={(e) => update(i, { order: Number(e.target.value) })} />
-          <Button className="col-span-1" variant="ghost" onClick={() => remove(i)}>✕</Button>
+          <Button type="button" className="col-span-1" variant="ghost" onClick={() => remove(i)}>✕</Button>
         </div>
       ))}
-      <Button variant="outline" onClick={add}>+ 프로세스 추가</Button>
+      <Button type="button" variant="outline" onClick={add}>+ 프로세스 추가</Button>
     </div>
   )
 }

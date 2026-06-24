@@ -23,41 +23,44 @@ export function SettingsDialog({ trigger }: { trigger: React.ReactNode }) {
     if (json) { await ipc.invoke('programs:import', json); await reloadPrograms() }
   }
 
-  if (!settings) return <>{trigger}</>
-
   return (
     <Dialog>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader><DialogTitle>설정</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <div>
-            <Label>로그 버퍼 줄 수</Label>
-            <Input
-              type="number"
-              value={settings.logBufferLines}
-              onChange={(e) => {
-                const n = parseInt(e.target.value, 10)
-                if (Number.isInteger(n) && n >= 1) {
-                  save({ ...settings, logBufferLines: n })
-                }
-              }}
-            />
+        {!settings ? (
+          <p className="text-sm text-muted-foreground">설정을 불러오는 중...</p>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <Label>로그 버퍼 줄 수</Label>
+              <Input
+                type="number"
+                min={1}
+                value={settings.logBufferLines}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10)
+                  if (Number.isInteger(n) && n >= 1) {
+                    save({ ...settings, logBufferLines: n })
+                  }
+                }}
+              />
+            </div>
+            <label className="flex items-center gap-2">
+              <Switch checked={settings.logToFile} onCheckedChange={(c) => save({ ...settings, logToFile: c })} />
+              로그 파일 저장
+            </label>
+            <div>
+              <Label>기본 로그 URL 정규식</Label>
+              <Input value={settings.defaultLogPattern}
+                onChange={(e) => save({ ...settings, defaultLogPattern: e.target.value })} />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={exportPrograms}>프로그램 내보내기</Button>
+              <Button type="button" variant="outline" onClick={importPrograms}>가져오기</Button>
+            </div>
           </div>
-          <label className="flex items-center gap-2">
-            <Switch checked={settings.logToFile} onCheckedChange={(c) => save({ ...settings, logToFile: c })} />
-            로그 파일 저장
-          </label>
-          <div>
-            <Label>기본 로그 URL 정규식</Label>
-            <Input value={settings.defaultLogPattern}
-              onChange={(e) => save({ ...settings, defaultLogPattern: e.target.value })} />
-          </div>
-          <div className="flex gap-2 pt-2">
-            <Button variant="outline" onClick={exportPrograms}>프로그램 내보내기</Button>
-            <Button variant="outline" onClick={importPrograms}>가져오기</Button>
-          </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   )

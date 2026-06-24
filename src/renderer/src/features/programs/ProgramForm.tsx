@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,6 +25,16 @@ export function ProgramForm({ existing, trigger }: { existing?: Program; trigger
   const [cloning, setCloning] = useState(false)
   const [cloneLog, setCloneLog] = useState<string[]>([])
   const logEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (open) {
+      setName(existing?.name ?? '')
+      setWorkingDir(existing?.workingDir ?? '')
+      setProcesses(existing?.processes ?? [{ name: 'proc1', command: '', order: 0 }])
+      setOpenSpec(existing?.open ?? emptyOpen)
+      setGit(existing?.git)
+    }
+  }, [open, existing])
 
   const pickDir = async () => {
     const dir = await ipc.invoke('dialog:pickDirectory')
@@ -83,13 +93,14 @@ export function ProgramForm({ existing, trigger }: { existing?: Program; trigger
             <Label>작업 폴더</Label>
             <div className="flex gap-2">
               <Input value={workingDir} onChange={(e) => setWorkingDir(e.target.value)} />
-              <Button variant="outline" onClick={pickDir}>선택</Button>
+              <Button type="button" variant="outline" onClick={pickDir}>선택</Button>
             </div>
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
               <Label>git (선택)</Label>
               <Button
+                type="button"
                 variant="outline"
                 size="sm"
                 disabled={!canClone || cloning}
@@ -110,7 +121,7 @@ export function ProgramForm({ existing, trigger }: { existing?: Program; trigger
           </div>
           <div><Label>프로세스</Label><ProcessFields value={processes} onChange={setProcesses} /></div>
           <OpenFields value={openSpec} onChange={setOpenSpec} />
-          <Button onClick={submit} disabled={!name || !workingDir || processes.some((p) => !p.command)}>저장</Button>
+          <Button type="button" onClick={submit} disabled={!name || !workingDir || processes.some((p) => !p.command)}>저장</Button>
         </div>
       </DialogContent>
     </Dialog>
