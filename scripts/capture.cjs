@@ -19,7 +19,20 @@ app.whenReady().then(async () => {
     webPreferences: { preload: PRELOAD, contextIsolation: true, nodeIntegration: false },
   })
   await win.loadFile(RENDERER)
-  await new Promise((r) => setTimeout(r, 1800))
+  await new Promise((r) => setTimeout(r, 1500))
+  // Optionally click a button (by visible text) to open a dialog before capture.
+  const clickText = process.env.TL_CLICKTEXT
+  if (clickText) {
+    await win.webContents.executeJavaScript(`
+      (() => {
+        const btns = [...document.querySelectorAll('button')]
+        const b = btns.find((x) => (x.textContent || '').includes(${JSON.stringify(clickText)}))
+        if (b) { b.click(); return true }
+        return false
+      })()
+    `)
+    await new Promise((r) => setTimeout(r, 900))
+  }
   const img = await win.webContents.capturePage()
   fs.writeFileSync(OUT, img.toPNG())
   console.log('captured to', OUT)
