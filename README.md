@@ -92,22 +92,18 @@ npm run build:linux  # dist/*.AppImage, dist/*.deb
 > 코드 서명·공증은 설정하지 않았습니다. 미서명 빌드라 macOS/Windows에서 최초 실행 시 경고가
 > 뜰 수 있습니다(macOS는 우클릭 → 열기). 서명 인증서를 추가하면 해결됩니다.
 
-## 릴리즈 (수동)
+## 릴리즈 (태그 기반)
 
-GitHub에 Release를 발행하면 `build-release` 워크플로가 3 OS 설치 파일을 빌드해 릴리즈에 첨부합니다.
+원하는 버전으로 GitHub Release를 발행하면, `build-release` 워크플로가 **태그에서 버전을 읽어**
+3 OS 설치 파일을 빌드해 **그 릴리즈에** 첨부합니다. `package.json` 버전은 손댈 필요 없습니다.
 
 ```bash
-# 1) 버전 올리기 (package.json 버전 + 커밋 + vX.Y.Z 태그 생성)
-npm version patch      # 또는 minor / major
-# 2) 푸시 (태그 포함)
-git push --follow-tags
-# 3) 릴리즈 발행 → build-release 트리거 → 3 OS 설치파일 빌드/첨부
-gh release create "v$(node -p "require('./package.json').version")" --generate-notes
+gh release create v1.0.1 --generate-notes     # 태그 v1.0.1 → 1.0.1로 빌드·첨부
 ```
 
-> 설치파일 이름은 `package.json` 버전을 따르므로 릴리즈 전 `npm version`으로 버전을 올리세요.
-> 빌드는 GitHub Actions(3 OS 러너)에서 수행되므로 로컬에서 mac/win/linux를 모두 만들 필요는 없습니다
-> (로컬 검증은 현재 OS만, 예: macOS는 `npm run build:mac`).
+- 태그는 `v` + semver(`v1.2.3`) 형식. 설치파일/릴리즈 버전이 태그와 자동으로 일치합니다.
+- 빌드는 GitHub Actions(3 OS 러너)에서 수행되므로 로컬에서 mac/win/linux를 모두 만들 필요는 없습니다
+  (로컬 검증은 현재 OS만, 예: macOS는 `npm run build:mac`).
 
 ## 최초 1회 설정 (GitHub 연동)
 

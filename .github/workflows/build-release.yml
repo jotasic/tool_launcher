@@ -21,6 +21,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Tag is the source of truth: set package.json version from the release tag
+      # (v1.2.0 -> 1.2.0) so you never hand-edit the version and the installers
+      # attach to the exact release you published.
+      - name: Set version from release tag
+        shell: bash
+        run: npm version --no-git-tag-version --allow-same-version "${TAG#v}"
+        env:
+          TAG: ${{ github.event.release.tag_name }}
       - name: Build and publish
         run: |
           npm run build
