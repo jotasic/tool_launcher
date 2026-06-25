@@ -6,3 +6,4 @@ out
 *.log*
 .playwright-mcp/
 *.tsbuildinfo
+.superpowers/
