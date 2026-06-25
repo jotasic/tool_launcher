@@ -20,10 +20,12 @@
 ### Task 1: OpenResolver (순수 함수)
 
 **Files:**
+
 - Create: `src/main/core/open-resolver.ts`
 - Test: `src/main/core/open-resolver.test.ts`
 
 **Interfaces:**
+
 - Consumes: `OpenSpec` (shared/types).
 - Produces:
   - `resolveStaticOpen(open: OpenSpec | undefined): string | undefined` — `url`/`path`는 value 반환, 그 외 undefined.
@@ -39,14 +41,20 @@ import { resolveStaticOpen, matchUrlFromLog } from './open-resolver'
 
 describe('resolveStaticOpen', () => {
   it('returns value for url mode', () => {
-    expect(resolveStaticOpen({ mode: 'url', value: 'http://x', autoOpenOnStart: false })).toBe('http://x')
+    expect(resolveStaticOpen({ mode: 'url', value: 'http://x', autoOpenOnStart: false })).toBe(
+      'http://x'
+    )
   })
   it('returns value for path mode', () => {
-    expect(resolveStaticOpen({ mode: 'path', value: '/tmp/a', autoOpenOnStart: false })).toBe('/tmp/a')
+    expect(resolveStaticOpen({ mode: 'path', value: '/tmp/a', autoOpenOnStart: false })).toBe(
+      '/tmp/a'
+    )
   })
   it('returns undefined for none and url-from-log', () => {
     expect(resolveStaticOpen({ mode: 'none', autoOpenOnStart: false })).toBeUndefined()
-    expect(resolveStaticOpen({ mode: 'url-from-log', logPattern: 'x', autoOpenOnStart: false })).toBeUndefined()
+    expect(
+      resolveStaticOpen({ mode: 'url-from-log', logPattern: 'x', autoOpenOnStart: false })
+    ).toBeUndefined()
   })
   it('returns undefined when open is undefined', () => {
     expect(resolveStaticOpen(undefined)).toBeUndefined()
@@ -55,8 +63,9 @@ describe('resolveStaticOpen', () => {
 
 describe('matchUrlFromLog', () => {
   it('extracts first url-like match', () => {
-    expect(matchUrlFromLog('Running on http://127.0.0.1:8501 (Press Ctrl+C)', 'https?://[^\\s]+'))
-      .toBe('http://127.0.0.1:8501')
+    expect(
+      matchUrlFromLog('Running on http://127.0.0.1:8501 (Press Ctrl+C)', 'https?://[^\\s]+')
+    ).toBe('http://127.0.0.1:8501')
   })
   it('returns undefined when no match', () => {
     expect(matchUrlFromLog('no url here', 'https?://[^\\s]+')).toBeUndefined()
@@ -115,10 +124,12 @@ git commit -m "feat: add OpenResolver for static and log-derived open targets"
 ### Task 2: ProcessManager에 "열기" 해석 통합
 
 **Files:**
+
 - Modify: `src/main/core/process-manager.ts`
 - Modify: `src/main/core/process-manager.test.ts`
 
 **Interfaces:**
+
 - Consumes: `resolveStaticOpen`, `matchUrlFromLog` (Task 1).
 - Produces (추가):
   - `start()`가 시작 시 `resolvedOpenTarget`을 정적 모드면 즉시 설정.
@@ -135,7 +146,9 @@ describe('ProcessManager open resolution', () => {
   it('sets resolvedOpenTarget for static url on start', async () => {
     const { deps } = makeFakeDeps()
     const pm = new ProcessManager(new LogStore(100), deps)
-    await pm.start(prog({ open: { mode: 'url', value: 'http://localhost:3000', autoOpenOnStart: false } }))
+    await pm.start(
+      prog({ open: { mode: 'url', value: 'http://localhost:3000', autoOpenOnStart: false } })
+    )
     expect(pm.getRuntime('a').resolvedOpenTarget).toBe('http://localhost:3000')
   })
 
@@ -222,21 +235,23 @@ open 콜백 추가:
 `this.states.set(program.id, { status: 'starting', procs: [] })` 를 다음으로 교체:
 
 ```ts
-    const staticTarget = resolveStaticOpen(program.open)
-    this.states.set(program.id, {
-      status: 'starting', procs: [], open: program.open,
-      resolvedOpenTarget: staticTarget,
-    })
-    this.setStatus(program.id, {})
-    if (staticTarget && program.open?.autoOpenOnStart) {
-      this.requestOpen(program.id, staticTarget)
-    }
+const staticTarget = resolveStaticOpen(program.open)
+this.states.set(program.id, {
+  status: 'starting',
+  procs: [],
+  open: program.open,
+  resolvedOpenTarget: staticTarget
+})
+this.setStatus(program.id, {})
+if (staticTarget && program.open?.autoOpenOnStart) {
+  this.requestOpen(program.id, staticTarget)
+}
 ```
 
 `pipe()`의 라인 처리에서 url-from-log 검사 추가. `this.log(...)` 호출 뒤에 다음을 넣는다(라인 단위 처리 안에서):
 
 ```ts
-        this.maybeDetectUrl(programId, l)
+this.maybeDetectUrl(programId, l)
 ```
 
 그리고 메서드 추가:
@@ -273,10 +288,12 @@ git commit -m "feat: resolve open target (static + url-from-log) and auto-open h
 ### Task 3: IPC 계약에 git 채널 추가 + 자동 열기 연결
 
 **Files:**
+
 - Modify: `src/shared/ipc.ts`
 - Modify: `src/main/ipc/register-ipc.ts`
 
 **Interfaces:**
+
 - Produces (계약 추가):
   - invoke `'git:clone': (req: { repoUrl: string; branch?: string; targetDir: string }) => Promise<void>`
   - event `'git:progress': { text: string }`
@@ -303,21 +320,21 @@ git commit -m "feat: resolve open target (static + url-from-log) and auto-open h
 `register-ipc.ts`의 이벤트 구독부에 추가(파일 끝 `logs.subscribe` 근처):
 
 ```ts
-  processes.onOpenRequested(async (_id, target) => {
-    if (/^https?:\/\//.test(target)) await shell.openExternal(target)
-    else await shell.openPath(target)
-  })
+processes.onOpenRequested(async (_id, target) => {
+  if (/^https?:\/\//.test(target)) await shell.openExternal(target)
+  else await shell.openPath(target)
+})
 ```
 
 또한 기존 `programs:open` 핸들러를 url/경로 구분하도록 교체:
 
 ```ts
-  ipcMain.handle('programs:open', async (_e, id: string) => {
-    const target = processes.getRuntime(id).resolvedOpenTarget
-    if (!target) return
-    if (/^https?:\/\//.test(target)) await shell.openExternal(target)
-    else await shell.openPath(target)
-  })
+ipcMain.handle('programs:open', async (_e, id: string) => {
+  const target = processes.getRuntime(id).resolvedOpenTarget
+  if (!target) return
+  if (/^https?:\/\//.test(target)) await shell.openExternal(target)
+  else await shell.openPath(target)
+})
 ```
 
 - [ ] **Step 3: 타입체크**
@@ -337,10 +354,12 @@ git commit -m "feat: add git IPC channel and wire auto-open via shell"
 ### Task 4: GitService (clone / pull)
 
 **Files:**
+
 - Create: `src/main/core/git-service.ts`
 - Test: `src/main/core/git-service.test.ts`
 
 **Interfaces:**
+
 - Produces: `class GitService`
   - 주입식: `constructor(deps: { run: (args: string[], opts: { cwd?: string }, onLine: (line: string) => void) => Promise<{ code: number }> })`
   - `clone(req: { repoUrl: string; branch?: string; targetDir: string }, onProgress: (line: string) => void): Promise<void>` — 실패(code≠0) 시 throw.
@@ -358,14 +377,24 @@ import { GitService } from './git-service'
 describe('GitService', () => {
   it('runs clone with branch and targetDir', async () => {
     const calls: string[][] = []
-    const svc = new GitService({ run: async (args) => { calls.push(args); return { code: 0 } } })
+    const svc = new GitService({
+      run: async (args) => {
+        calls.push(args)
+        return { code: 0 }
+      }
+    })
     await svc.clone({ repoUrl: 'https://x/y.git', branch: 'dev', targetDir: '/tmp/y' }, () => {})
     expect(calls[0]).toEqual(['clone', '--branch', 'dev', 'https://x/y.git', '/tmp/y'])
   })
 
   it('omits --branch when not given', async () => {
     const calls: string[][] = []
-    const svc = new GitService({ run: async (args) => { calls.push(args); return { code: 0 } } })
+    const svc = new GitService({
+      run: async (args) => {
+        calls.push(args)
+        return { code: 0 }
+      }
+    })
     await svc.clone({ repoUrl: 'https://x/y.git', targetDir: '/tmp/y' }, () => {})
     expect(calls[0]).toEqual(['clone', 'https://x/y.git', '/tmp/y'])
   })
@@ -377,14 +406,24 @@ describe('GitService', () => {
 
   it('runs pull in the given dir', async () => {
     const seen: { args: string[]; cwd?: string }[] = []
-    const svc = new GitService({ run: async (args, opts) => { seen.push({ args, cwd: opts.cwd }); return { code: 0 } } })
+    const svc = new GitService({
+      run: async (args, opts) => {
+        seen.push({ args, cwd: opts.cwd })
+        return { code: 0 }
+      }
+    })
     await svc.pull('/tmp/y', () => {})
     expect(seen[0]).toEqual({ args: ['pull'], cwd: '/tmp/y' })
   })
 
   it('forwards progress lines', async () => {
     const lines: string[] = []
-    const svc = new GitService({ run: async (_a, _o, onLine) => { onLine('Cloning...'); return { code: 0 } } })
+    const svc = new GitService({
+      run: async (_a, _o, onLine) => {
+        onLine('Cloning...')
+        return { code: 0 }
+      }
+    })
     await svc.clone({ repoUrl: 'x', targetDir: '/tmp/y' }, (l) => lines.push(l))
     expect(lines).toContain('Cloning...')
   })
@@ -404,7 +443,11 @@ Create `src/main/core/git-service.ts`:
 import { spawn } from 'node:child_process'
 
 export interface GitRunner {
-  run: (args: string[], opts: { cwd?: string }, onLine: (line: string) => void) => Promise<{ code: number }>
+  run: (
+    args: string[],
+    opts: { cwd?: string },
+    onLine: (line: string) => void
+  ) => Promise<{ code: number }>
 }
 
 export class GitService {
@@ -412,7 +455,7 @@ export class GitService {
 
   async clone(
     req: { repoUrl: string; branch?: string; targetDir: string },
-    onProgress: (line: string) => void,
+    onProgress: (line: string) => void
   ): Promise<void> {
     const args = ['clone']
     if (req.branch) args.push('--branch', req.branch)
@@ -437,9 +480,12 @@ export function createGitRunner(): GitRunner {
         }
         child.stdout?.on('data', handle)
         child.stderr?.on('data', handle) // git은 진행상황을 stderr로 출력
-        child.on('error', (err) => { onLine(String(err)); resolve({ code: 1 }) })
+        child.on('error', (err) => {
+          onLine(String(err))
+          resolve({ code: 1 })
+        })
         child.on('exit', (code) => resolve({ code: code ?? 1 }))
-      }),
+      })
   }
 }
 ```
@@ -462,11 +508,11 @@ import { GitService, createGitRunner } from './core/git-service'
 `register-ipc.ts`에 핸들러 추가(`const { store, processes, logs } = ctx` 를 `const { store, processes, logs, git } = ctx`로):
 
 ```ts
-  ipcMain.handle('git:clone', async (_e, req) => {
-    await git.clone(req, (line) => {
-      if (!win.isDestroyed()) win.webContents.send('git:progress', { text: line })
-    })
+ipcMain.handle('git:clone', async (_e, req) => {
+  await git.clone(req, (line) => {
+    if (!win.isDestroyed()) win.webContents.send('git:progress', { text: line })
   })
+})
 ```
 
 - [ ] **Step 6: 타입체크 + 테스트**
@@ -486,11 +532,13 @@ git commit -m "feat: add GitService with clone/pull and IPC progress streaming"
 ### Task 5: shadcn/ui 설치 및 기본 컴포넌트
 
 **Files:**
+
 - Modify: `tsconfig.json` (path alias), `electron.vite.config.ts` (resolve alias)
 - Create: `components.json`, `src/renderer/lib/utils.ts`
 - Create: `src/renderer/components/ui/button.tsx`, `input.tsx`, `dialog.tsx`, `select.tsx`, `label.tsx`, `switch.tsx`
 
 **Interfaces:**
+
 - Produces: shadcn 컴포넌트(`Button`, `Input`, `Dialog`, `Select`, `Label`, `Switch`)를 `@/components/ui/*`에서 import 가능.
 
 - [ ] **Step 1: path alias 설정**
@@ -539,6 +587,7 @@ git commit -m "chore: set up shadcn/ui components and path alias"
 ### Task 6: 프로그램 추가/편집 폼
 
 **Files:**
+
 - Create: `src/renderer/features/programs/ProgramForm.tsx`
 - Create: `src/renderer/features/programs/ProcessFields.tsx`
 - Create: `src/renderer/features/programs/OpenFields.tsx`
@@ -547,6 +596,7 @@ git commit -m "chore: set up shadcn/ui components and path alias"
 - Modify: `src/renderer/stores/programs.ts` (create/update/remove 액션)
 
 **Interfaces:**
+
 - Consumes: shadcn 컴포넌트, `ipc`, `dialog:pickDirectory`.
 - Produces: 모달 폼으로 Program 생성/수정. 프로세스 여러 개 추가/삭제, open 모드별 조건부 필드, 작업 폴더 선택 버튼.
 
@@ -555,9 +605,9 @@ git commit -m "chore: set up shadcn/ui components and path alias"
 `src/renderer/stores/programs.ts`의 인터페이스/구현에 추가:
 
 ```ts
-  create: (p: Omit<Program, 'id'>) => Promise<void>
-  update: (p: Program) => Promise<void>
-  remove: (id: string) => Promise<void>
+create: (p: Omit<Program, 'id'>) => Promise<void>
+update: (p: Program) => Promise<void>
+remove: (id: string) => Promise<void>
 ```
 
 구현(set 안에서 load 재호출로 단순화):
@@ -580,7 +630,13 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import type { OpenSpec, OpenMode } from '../../../shared/types'
 
-export function OpenFields({ value, onChange }: { value: OpenSpec; onChange: (v: OpenSpec) => void }) {
+export function OpenFields({
+  value,
+  onChange
+}: {
+  value: OpenSpec
+  onChange: (v: OpenSpec) => void
+}) {
   return (
     <div className="space-y-2 rounded border p-3">
       <Label>열기 동작</Label>
@@ -611,7 +667,10 @@ export function OpenFields({ value, onChange }: { value: OpenSpec; onChange: (v:
       )}
       {value.mode !== 'none' && (
         <label className="flex items-center gap-2 text-sm">
-          <Switch checked={value.autoOpenOnStart} onCheckedChange={(c) => onChange({ ...value, autoOpenOnStart: c })} />
+          <Switch
+            checked={value.autoOpenOnStart}
+            onCheckedChange={(c) => onChange({ ...value, autoOpenOnStart: c })}
+          />
           시작 시 자동 열기
         </label>
       )}
@@ -629,7 +688,13 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import type { ProcessSpec } from '../../../shared/types'
 
-export function ProcessFields({ value, onChange }: { value: ProcessSpec[]; onChange: (v: ProcessSpec[]) => void }) {
+export function ProcessFields({
+  value,
+  onChange
+}: {
+  value: ProcessSpec[]
+  onChange: (v: ProcessSpec[]) => void
+}) {
   const update = (i: number, patch: Partial<ProcessSpec>) =>
     onChange(value.map((p, idx) => (idx === i ? { ...p, ...patch } : p)))
   const add = () =>
@@ -640,14 +705,38 @@ export function ProcessFields({ value, onChange }: { value: ProcessSpec[]; onCha
     <div className="space-y-2">
       {value.map((p, i) => (
         <div key={i} className="grid grid-cols-12 gap-2 items-center">
-          <Input className="col-span-2" placeholder="이름" value={p.name} onChange={(e) => update(i, { name: e.target.value })} />
-          <Input className="col-span-5" placeholder="명령 (예: python)" value={p.command} onChange={(e) => update(i, { command: e.target.value })} />
-          <Input className="col-span-3" placeholder="인자 (공백구분)" value={(p.args ?? []).join(' ')} onChange={(e) => update(i, { args: e.target.value.split(' ').filter(Boolean) })} />
-          <Input className="col-span-1" type="number" value={p.order} onChange={(e) => update(i, { order: Number(e.target.value) })} />
-          <Button className="col-span-1" variant="ghost" onClick={() => remove(i)}>✕</Button>
+          <Input
+            className="col-span-2"
+            placeholder="이름"
+            value={p.name}
+            onChange={(e) => update(i, { name: e.target.value })}
+          />
+          <Input
+            className="col-span-5"
+            placeholder="명령 (예: python)"
+            value={p.command}
+            onChange={(e) => update(i, { command: e.target.value })}
+          />
+          <Input
+            className="col-span-3"
+            placeholder="인자 (공백구분)"
+            value={(p.args ?? []).join(' ')}
+            onChange={(e) => update(i, { args: e.target.value.split(' ').filter(Boolean) })}
+          />
+          <Input
+            className="col-span-1"
+            type="number"
+            value={p.order}
+            onChange={(e) => update(i, { order: Number(e.target.value) })}
+          />
+          <Button className="col-span-1" variant="ghost" onClick={() => remove(i)}>
+            ✕
+          </Button>
         </div>
       ))}
-      <Button variant="outline" onClick={add}>+ 프로세스 추가</Button>
+      <Button variant="outline" onClick={add}>
+        + 프로세스 추가
+      </Button>
     </div>
   )
 }
@@ -659,7 +748,13 @@ Create `src/renderer/features/programs/ProgramForm.tsx`:
 
 ```tsx
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -671,13 +766,21 @@ import type { Program, OpenSpec } from '../../../shared/types'
 
 const emptyOpen: OpenSpec = { mode: 'none', autoOpenOnStart: false }
 
-export function ProgramForm({ existing, trigger }: { existing?: Program; trigger: React.ReactNode }) {
+export function ProgramForm({
+  existing,
+  trigger
+}: {
+  existing?: Program
+  trigger: React.ReactNode
+}) {
   const create = useProgramsStore((s) => s.create)
   const update = useProgramsStore((s) => s.update)
   const [open, setOpen] = useState(false)
   const [name, setName] = useState(existing?.name ?? '')
   const [workingDir, setWorkingDir] = useState(existing?.workingDir ?? '')
-  const [processes, setProcesses] = useState(existing?.processes ?? [{ name: 'proc1', command: '', order: 0 }])
+  const [processes, setProcesses] = useState(
+    existing?.processes ?? [{ name: 'proc1', command: '', order: 0 }]
+  )
   const [openSpec, setOpenSpec] = useState<OpenSpec>(existing?.open ?? emptyOpen)
 
   const pickDir = async () => {
@@ -696,19 +799,34 @@ export function ProgramForm({ existing, trigger }: { existing?: Program; trigger
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-auto">
-        <DialogHeader><DialogTitle>{existing ? '프로그램 편집' : '프로그램 추가'}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{existing ? '프로그램 편집' : '프로그램 추가'}</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
-          <div><Label>이름</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div>
+            <Label>이름</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
           <div>
             <Label>작업 폴더</Label>
             <div className="flex gap-2">
               <Input value={workingDir} onChange={(e) => setWorkingDir(e.target.value)} />
-              <Button variant="outline" onClick={pickDir}>선택</Button>
+              <Button variant="outline" onClick={pickDir}>
+                선택
+              </Button>
             </div>
           </div>
-          <div><Label>프로세스</Label><ProcessFields value={processes} onChange={setProcesses} /></div>
+          <div>
+            <Label>프로세스</Label>
+            <ProcessFields value={processes} onChange={setProcesses} />
+          </div>
           <OpenFields value={openSpec} onChange={setOpenSpec} />
-          <Button onClick={submit} disabled={!name || !workingDir || processes.some((p) => !p.command)}>저장</Button>
+          <Button
+            onClick={submit}
+            disabled={!name || !workingDir || processes.some((p) => !p.command)}
+          >
+            저장
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -754,11 +872,13 @@ git commit -m "feat: add/edit program form with processes, open modes, dir picke
 ### Task 7: 트레이 최소화 + 종료 동작
 
 **Files:**
+
 - Modify: `src/main/main.ts`
 - Create: `src/main/tray.ts`
 - Create: `resources/tray-icon.png` (16/32px 아이콘; 임시로 단색 PNG 가능)
 
 **Interfaces:**
+
 - Consumes: `AppContext`(실행 중 개수 표시·정리용).
 - Produces: `setupTray(win, ctx, onQuit)` — 트레이 아이콘+메뉴(창 열기/실행 중 개수/종료). 창 닫기는 hide. 종료 시 실행 중 프로그램 모두 stop 후 quit.
 
@@ -785,7 +905,7 @@ export function setupTray(win: BrowserWindow, ctx: AppContext): Tray {
       { label: '창 열기', click: () => win.show() },
       { label: `실행 중: ${runningCount()}개`, enabled: false },
       { type: 'separator' },
-      { label: '종료', click: () => app.quit() },
+      { label: '종료', click: () => app.quit() }
     ])
     tray.setContextMenu(menu)
   }
@@ -810,16 +930,21 @@ let isQuitting = false
 `createWindow` 안에서 IPC 등록 직후:
 
 ```ts
-  setupTray(win, ctx)
-  win.on('close', (e) => {
-    if (!isQuitting) { e.preventDefault(); win?.hide() }
-  })
+setupTray(win, ctx)
+win.on('close', (e) => {
+  if (!isQuitting) {
+    e.preventDefault()
+    win?.hide()
+  }
+})
 ```
 
 `app.on('window-all-closed', ...)` 교체 + before-quit 정리:
 
 ```ts
-app.on('window-all-closed', () => { /* 트레이 유지: 자동 종료 안 함 */ })
+app.on('window-all-closed', () => {
+  /* 트레이 유지: 자동 종료 안 함 */
+})
 
 app.on('before-quit', async (e) => {
   if (isQuitting) return
@@ -853,6 +978,7 @@ let currentCtx: import('./app-context').AppContext | null = null
 
 Run: `npm run dev`
 Expected:
+
 - 프로그램 시작 후 창 닫기(X) → 창이 사라지고 트레이 아이콘 유지, 프로그램은 계속 실행(Activity Monitor 확인).
 - 트레이 메뉴 "창 열기" → 다시 보임. "실행 중: N개" 표시.
 - 트레이 "종료" → 실행 중 프로세스 정리 후 앱 완전 종료(node 프로세스도 종료 확인).
@@ -869,11 +995,13 @@ git commit -m "feat: tray with minimize-on-close and cleanup-on-quit"
 ### Task 8: 설정 UI + 가져오기/내보내기
 
 **Files:**
+
 - Create: `src/renderer/features/settings/SettingsDialog.tsx`
 - Create: `src/renderer/stores/settings.ts`
 - Modify: `src/renderer/App.tsx` (헤더에 설정 버튼)
 
 **Interfaces:**
+
 - Consumes: `settings:get/set`, `programs:export/import`, shadcn.
 - Produces: 설정 다이얼로그(로그 버퍼 줄 수, 파일 저장, 기본 정규식) + 프로그램 내보내기(파일 저장)/가져오기(붙여넣기).
 
@@ -895,7 +1023,7 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>((set) => ({
   settings: null,
   load: async () => set({ settings: await ipc.invoke('settings:get') }),
-  save: async (s) => set({ settings: await ipc.invoke('settings:set', s) }),
+  save: async (s) => set({ settings: await ipc.invoke('settings:set', s) })
 }))
 ```
 
@@ -905,7 +1033,13 @@ Create `src/renderer/features/settings/SettingsDialog.tsx`:
 
 ```tsx
 import { useEffect } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -917,7 +1051,9 @@ import { ipc } from '../../lib/ipc'
 export function SettingsDialog({ trigger }: { trigger: React.ReactNode }) {
   const { settings, load, save } = useSettingsStore()
   const reloadPrograms = useProgramsStore((s) => s.load)
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
 
   const exportPrograms = async () => {
     const json = await ipc.invoke('programs:export')
@@ -926,7 +1062,10 @@ export function SettingsDialog({ trigger }: { trigger: React.ReactNode }) {
   }
   const importPrograms = async () => {
     const json = prompt('가져올 프로그램 JSON을 붙여넣으세요:')
-    if (json) { await ipc.invoke('programs:import', json); await reloadPrograms() }
+    if (json) {
+      await ipc.invoke('programs:import', json)
+      await reloadPrograms()
+    }
   }
 
   if (!settings) return <>{trigger}</>
@@ -935,25 +1074,39 @@ export function SettingsDialog({ trigger }: { trigger: React.ReactNode }) {
     <Dialog>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>설정</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>설정</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
           <div>
             <Label>로그 버퍼 줄 수</Label>
-            <Input type="number" value={settings.logBufferLines}
-              onChange={(e) => save({ ...settings, logBufferLines: Number(e.target.value) })} />
+            <Input
+              type="number"
+              value={settings.logBufferLines}
+              onChange={(e) => save({ ...settings, logBufferLines: Number(e.target.value) })}
+            />
           </div>
           <label className="flex items-center gap-2">
-            <Switch checked={settings.logToFile} onCheckedChange={(c) => save({ ...settings, logToFile: c })} />
+            <Switch
+              checked={settings.logToFile}
+              onCheckedChange={(c) => save({ ...settings, logToFile: c })}
+            />
             로그 파일 저장
           </label>
           <div>
             <Label>기본 로그 URL 정규식</Label>
-            <Input value={settings.defaultLogPattern}
-              onChange={(e) => save({ ...settings, defaultLogPattern: e.target.value })} />
+            <Input
+              value={settings.defaultLogPattern}
+              onChange={(e) => save({ ...settings, defaultLogPattern: e.target.value })}
+            />
           </div>
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" onClick={exportPrograms}>프로그램 내보내기</Button>
-            <Button variant="outline" onClick={importPrograms}>가져오기</Button>
+            <Button variant="outline" onClick={exportPrograms}>
+              프로그램 내보내기
+            </Button>
+            <Button variant="outline" onClick={importPrograms}>
+              가져오기
+            </Button>
           </div>
         </div>
       </DialogContent>
@@ -993,6 +1146,7 @@ git commit -m "feat: settings dialog with import/export of programs"
 ## Self-Review (M2)
 
 **Spec coverage (M2 범위):**
+
 - "열기" 모드 집합(none/url/url-from-log/path) + 자동열기 → Task 1, 2, 3 ✓
 - 추가/편집 폼(프로세스 여러 개, open 조건부, 폴더 선택) → Task 6 ✓
 - git clone/pull(옵션) + 진행 로그 → Task 4 ✓

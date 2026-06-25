@@ -22,11 +22,13 @@
 ### Task 1: ESLint 경계 규칙 + Prettier
 
 **Files:**
+
 - Create/Modify: `eslint.config.js`
 - Create: `.prettierrc.json`
 - Modify: `package.json` (scripts)
 
 **Interfaces:**
+
 - Produces: `npm run lint`, `npm run format`. renderer→main import 시 lint 에러.
 
 - [ ] **Step 1: 의존성**
@@ -54,30 +56,44 @@ export default tseslint.config(
     plugins: { 'react-hooks': reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      'max-lines': ['warn', { max: 250, skipBlankLines: true, skipComments: true }],
-    },
+      'max-lines': ['warn', { max: 250, skipBlankLines: true, skipComments: true }]
+    }
   },
   {
     // 경계: renderer는 main을 직접 import 금지
     files: ['src/renderer/**/*.{ts,tsx}'],
     rules: {
-      'no-restricted-imports': ['error', {
-        patterns: [
-          { group: ['**/main/**', '../../main/*', '@/main/*'], message: 'renderer는 main을 직접 import할 수 없습니다. shared/ + IPC만 사용하세요.' },
-        ],
-      }],
-    },
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/main/**', '../../main/*', '@/main/*'],
+              message: 'renderer는 main을 직접 import할 수 없습니다. shared/ + IPC만 사용하세요.'
+            }
+          ]
+        }
+      ]
+    }
   },
   {
     // 경계: core는 electron import 금지
     files: ['src/main/core/**/*.ts'],
     rules: {
-      'no-restricted-imports': ['error', {
-        paths: [{ name: 'electron', message: 'core는 electron 비의존이어야 합니다(주입식 의존성 사용).' }],
-      }],
-    },
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'electron',
+              message: 'core는 electron 비의존이어야 합니다(주입식 의존성 사용).'
+            }
+          ]
+        }
+      ]
+    }
   },
-  prettier,
+  prettier
 )
 ```
 
@@ -120,11 +136,13 @@ git commit -m "chore: add ESLint boundary rules and Prettier config"
 ### Task 2: husky + lint-staged + commitlint
 
 **Files:**
+
 - Create: `.husky/pre-commit`, `.husky/commit-msg`
 - Create: `commitlint.config.js`
 - Modify: `package.json` (lint-staged 설정)
 
 **Interfaces:**
+
 - Produces: 커밋 시 자동 typecheck/lint/format(staged) + 커밋 메시지 Conventional Commits 검증.
 
 - [ ] **Step 1: 의존성 + husky 초기화**
@@ -196,9 +214,11 @@ git commit -m "chore: add husky, lint-staged, commitlint for commit-time guardra
 ### Task 3: CONVENTIONS.md
 
 **Files:**
+
 - Create: `CONVENTIONS.md`
 
 **Interfaces:**
+
 - Produces: 코드 규칙 문서.
 
 - [ ] **Step 1: 문서 작성**
@@ -209,6 +229,7 @@ Create `CONVENTIONS.md`:
 # 코드 컨벤션
 
 ## 구조
+
 - `src/shared` : main/renderer 공유 타입 + IPC 계약. 단일 진실원.
 - `src/main/core` : 순수 로직. electron import 금지. 의존성은 주입.
 - `src/main/ipc`, `src/main/*.ts` : electron 연결(얇게).
@@ -216,20 +237,24 @@ Create `CONVENTIONS.md`:
 - `src/renderer` : React UI. main 직접 import 금지(shared + IPC만).
 
 ## 경계 (ESLint로 강제)
+
 - renderer → main import 금지.
 - core → electron import 금지.
 - 파일 250줄 초과 시 경고 → 분리.
 
 ## UI
+
 - 상태관리 Zustand(도메인별 스토어). prop drilling/Context 떡칠 금지.
 - presentational 컴포넌트는 props만, IPC 직접 호출 금지.
 - 파일 1개 = 컴포넌트 1개. 스타일은 Tailwind + shadcn/ui.
 
 ## 커밋 (commitlint로 강제)
+
 - Conventional Commits: feat/fix/chore/docs/test/refactor 등.
 - release-please가 이 메시지로 버전·CHANGELOG를 산정.
 
 ## 테스트
+
 - core 로직은 단위 테스트 필수(Vitest). 의존성 주입으로 격리.
 - 실제 프로세스/네트워크는 통합 테스트에서만.
 ```
@@ -246,11 +271,13 @@ git commit -m "docs: add CONVENTIONS.md"
 ### Task 4: electron-builder 패키징 설정 (3 OS)
 
 **Files:**
+
 - Create/Modify: `electron-builder.yml`
 - Create: `build/icon.png` (512x512, mac/linux), `build/icon.ico` (Windows)
 - Modify: `package.json` (build scripts, version, repository 필드)
 
 **Interfaces:**
+
 - Produces: `npm run build:mac|win|linux` → `dist/`에 설치 파일.
 
 - [ ] **Step 1: 빌더 설정**
@@ -333,9 +360,11 @@ git commit -m "build: configure electron-builder for mac/win/linux installers"
 ### Task 5: CI 워크플로 (테스트)
 
 **Files:**
+
 - Create: `.github/workflows/ci.yml`
 
 **Interfaces:**
+
 - Produces: PR/푸시마다 3 OS에서 lint·typecheck·test 실행.
 
 - [ ] **Step 1: 워크플로 작성**
@@ -387,10 +416,12 @@ git commit -m "ci: add test workflow across 3 OS matrix"
 ### Task 6: release-please 워크플로
 
 **Files:**
+
 - Create: `.github/workflows/release-please.yml`
 - Create: `release-please-config.json`, `.release-please-manifest.json`
 
 **Interfaces:**
+
 - Produces: main 머지 시 Release PR 생성/갱신. Release PR 머지 시 `vX.Y.Z` 태그 + GitHub Release 생성.
 
 - [ ] **Step 1: 설정 파일**
@@ -452,9 +483,11 @@ git commit -m "ci: add release-please for versioning and release PRs"
 ### Task 7: CD 빌드/배포 워크플로 (릴리즈 시 설치 파일 첨부)
 
 **Files:**
+
 - Create: `.github/workflows/build-release.yml`
 
 **Interfaces:**
+
 - Consumes: release-please가 만든 GitHub Release(`release: published`).
 - Produces: 3 OS에서 electron-builder로 빌드 후 설치 파일을 해당 Release에 업로드.
 
@@ -516,10 +549,12 @@ Expected: Release 페이지에 3 OS 설치 파일이 첨부됨.
 ### Task 8: GitHub 저장소 연결 + README
 
 **Files:**
+
 - Create: `README.md`
 - Modify: `.gitignore` (dist/out 확인)
 
 **Interfaces:**
+
 - Produces: 원격 저장소 연결, 사용/개발 안내.
 
 - [ ] **Step 1: .gitignore 확인**
@@ -536,15 +571,18 @@ Create `README.md`:
 로컬 개인 프로그램(웹/GUI/CLI)을 등록해두고 데스크톱 앱에서 on/off·상태·로그·열기를 관리하는 크로스 플랫폼 런처.
 
 ## 개발
+
 - `npm run dev` — 개발 실행
 - `npm test` — 테스트
 - `npm run lint` / `npm run typecheck`
 - `npm run build:mac|win|linux` — 설치 파일 빌드
 
 ## 릴리즈
+
 Conventional Commits로 main에 머지 → release-please가 Release PR 누적 → Release PR 머지 시 태그+Release 생성 → CI가 3 OS 설치 파일 첨부.
 
 ## 문서
+
 - 설계: `docs/superpowers/specs/2026-06-23-tool-launcher-design.md`
 - 규칙: `CONVENTIONS.md`
 ```
@@ -571,6 +609,7 @@ git push
 ## Self-Review (M3)
 
 **Spec coverage (M3 범위):**
+
 - 3 OS 설치 패키지(.dmg/.exe/.AppImage/.deb) → Task 4 ✓
 - CI(테스트, 3 OS 매트릭스) → Task 5 ✓
 - release-please 릴리즈 자동화(머지 폭증 없이 버전·CHANGELOG) → Task 6 ✓
@@ -583,4 +622,7 @@ git push
 **Placeholder scan:** `<owner>`는 사용자가 채워야 하는 실제 값으로 명시(Task 4 Step 2). 아이콘은 임시 단색 허용으로 명시(Task 4 Step 3). 그 외 모든 파일 내용·명령은 구체적으로 채워짐.
 
 **의존성 순서:** M3는 M1·M2 완료를 전제. Task 7(CD)은 Task 4(빌더)·Task 6(release-please) 완료 후 동작. 원격 저장소 연결(Task 8) 후에야 CI/CD가 실제로 돌아감 — 로컬 검증 단계는 각 태스크에 포함.
+
+```
+
 ```

@@ -33,11 +33,17 @@ export function createGitRunner(): GitRunner {
     run: (args, opts, onLine) =>
       new Promise((resolve) => {
         const child = spawn('git', args, { cwd: opts.cwd })
-        const handle = (chunk: Buffer) => {
+        const handle = (chunk: Buffer): void => {
           for (const l of chunk.toString().split('\n')) if (l.length) onLine(l)
         }
-        child.stdout.on('data', handle)
-        child.stderr.on('data', handle)
+        child.stdout?.on('data', handle)
+        child.stderr?.on('data', handle)
+        // If `git` is not on PATH (or otherwise fails to spawn), 'error' fires and
+        // 'exit' never does — without this the promise would hang forever.
+        child.on('error', (err) => {
+          onLine(`git 실행 실패: ${err.message} (git이 설치되어 PATH에 있는지 확인하세요)`)
+          resolve({ code: 1 })
+        })
         child.on('exit', (code) => resolve({ code: code ?? 1 }))
       })
   }

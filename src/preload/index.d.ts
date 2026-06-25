@@ -1,4 +1,3 @@
-import { ElectronAPI } from '@electron-toolkit/preload'
 import type { IpcApi, IpcEvents } from '../shared/ipc'
 
 export interface ExposedApi {
@@ -8,7 +7,6 @@ export interface ExposedApi {
 
 declare global {
   interface Window {
-    electron: ElectronAPI
     api: ExposedApi
   }
 }
