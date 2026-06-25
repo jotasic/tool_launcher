@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: tool-launcher
+appId: com.taewookim.toollauncher
+productName: Tool Launcher
 directories:
   buildResources: build
 files:
@@ -19,6 +19,9 @@ nsis:
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
 mac:
+  target:
+    - dmg
+  category: public.app-category.developer-tools
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     - NSCameraUsageDescription: Application requests access to the device's camera.
@@ -31,13 +34,11 @@ dmg:
 linux:
   target:
     - AppImage
-    - snap
     - deb
-  maintainer: electronjs.org
-  category: Utility
+  maintainer: taewookim
+  category: Development
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
+  provider: github

@@ -1,10 +1,14 @@
 {
   "name": "tool-launcher",
   "version": "1.0.0",
-  "description": "An Electron application with React and TypeScript",
+  "description": "로컬 개인 프로그램(웹/GUI/CLI)을 등록해 on/off·상태·로그·열기로 관리하는 크로스 플랫폼 데스크톱 런처",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": "taewookim",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/taewookim/tool_launcher.git"
+  },
+  "homepage": "https://github.com/taewookim/tool_launcher",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
