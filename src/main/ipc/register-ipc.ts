@@ -43,7 +43,11 @@ export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContex
   ipcMain.handle('logs:get', (_e, programId: string) => logs.get(programId))
 
   ipcMain.handle('settings:get', () => store.getSettings())
-  ipcMain.handle('settings:set', (_e, s) => store.setSettings(s))
+  ipcMain.handle('settings:set', (_e, s) => {
+    const updated = store.setSettings(s)
+    logs.setFileLogging(updated.logToFile)
+    return updated
+  })
 
   ipcMain.handle(
     'git:clone',

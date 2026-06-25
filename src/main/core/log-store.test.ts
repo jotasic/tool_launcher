@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest'
+import { mkdtempSync, readFileSync, existsSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { LogStore } from './log-store'
 import type { LogLine } from '../../shared/types'
 
@@ -57,5 +60,38 @@ describe('LogStore', () => {
     await Promise.resolve()
     await Promise.resolve()
     expect(count).toBe(0)
+  })
+})
+
+describe('LogStore file logging', () => {
+  it('writes to <logDir>/<programId>.log when fileLogging is enabled', () => {
+    const logDir = mkdtempSync(join(tmpdir(), 'log-store-test-'))
+    const s = new LogStore(100, { logDir })
+    s.setFileLogging(true)
+    s.append({ programId: 'prog1', processName: 'web', stream: 'stdout', text: 'hello', ts: 0 })
+    const logFile = join(logDir, 'prog1.log')
+    expect(existsSync(logFile)).toBe(true)
+    const contents = readFileSync(logFile, 'utf-8')
+    expect(contents).toContain('hello')
+    expect(contents).toContain('web(stdout)')
+  })
+
+  it('does not create a log file when fileLogging is disabled (default)', () => {
+    const logDir = mkdtempSync(join(tmpdir(), 'log-store-test-'))
+    const s = new LogStore(100, { logDir })
+    s.append({ programId: 'prog2', processName: 'web', stream: 'stdout', text: 'world', ts: 0 })
+    expect(existsSync(join(logDir, 'prog2.log'))).toBe(false)
+  })
+
+  it('stops writing after setFileLogging(false)', () => {
+    const logDir = mkdtempSync(join(tmpdir(), 'log-store-test-'))
+    const s = new LogStore(100, { logDir })
+    s.setFileLogging(true)
+    s.append({ programId: 'prog3', processName: 'web', stream: 'stdout', text: 'line1', ts: 0 })
+    s.setFileLogging(false)
+    s.append({ programId: 'prog3', processName: 'web', stream: 'stdout', text: 'line2', ts: 0 })
+    const contents = readFileSync(join(logDir, 'prog3.log'), 'utf-8')
+    expect(contents).toContain('line1')
+    expect(contents).not.toContain('line2')
   })
 })

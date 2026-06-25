@@ -1,3 +1,4 @@
+import { join } from 'node:path'
 import { Store } from './core/store'
 import { LogStore } from './core/log-store'
 import { ProcessManager } from './core/process-manager'
@@ -14,7 +15,8 @@ export interface AppContext {
 export function createAppContext(userDataDir: string): AppContext {
   const store = new Store(userDataDir)
   const settings = store.getSettings()
-  const logs = new LogStore(settings.logBufferLines)
+  const logs = new LogStore(settings.logBufferLines, { logDir: join(userDataDir, 'logs') })
+  logs.setFileLogging(settings.logToFile)
   const processes = new ProcessManager(logs, createRealDeps())
   const git = new GitService(createGitRunner())
   return { store, logs, processes, git }
