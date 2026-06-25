@@ -28,7 +28,9 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false
     }
   })
 
@@ -48,7 +50,8 @@ function createWindow(): void {
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    // Defense-in-depth: only hand off http(s) links to the OS browser; deny the rest.
+    if (/^https?:\/\//.test(details.url)) shell.openExternal(details.url)
     return { action: 'deny' }
   })
 
