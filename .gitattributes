@@ -1,0 +1,10 @@
+# Normalize all text files to LF on every platform (incl. Windows CI checkout),
+# so prettier/eslint don't flag CRLF (`Delete ␍`) on the Windows runner.
+* text=auto eol=lf
+
+# Binary assets — never apply line-ending conversion.
+*.png binary
+*.ico binary
+*.icns binary
+*.svg binary
+*.dmg binary
