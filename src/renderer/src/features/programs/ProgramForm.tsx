@@ -90,10 +90,16 @@ export function ProgramForm({
   }
 
   const submit = async () => {
+    // Args are stored split-on-space while typing (so spaces type correctly);
+    // drop empty tokens (from double/trailing spaces) only here, at save time.
+    const cleanedProcesses = processes.map((p) => {
+      const args = (p.args ?? []).filter((a) => a.length > 0)
+      return { ...p, args: args.length > 0 ? args : undefined }
+    })
     const payload: Omit<Program, 'id'> = {
       name,
       workingDir,
-      processes,
+      processes: cleanedProcesses,
       open: openSpec,
       ...(git ? { git } : {})
     }
