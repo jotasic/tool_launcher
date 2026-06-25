@@ -4,6 +4,8 @@ export interface OpenSpec {
   mode: OpenMode
   value?: string
   logPattern?: string
+  /** For url-from-log: only scan this process's output. Empty = all processes. */
+  logProcessName?: string
   autoOpenOnStart: boolean
 }
 

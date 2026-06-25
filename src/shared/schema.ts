@@ -5,6 +5,7 @@ const openSpecSchema = z.object({
   mode: z.enum(['none', 'url', 'url-from-log', 'path']),
   value: z.string().optional(),
   logPattern: z.string().optional(),
+  logProcessName: z.string().optional(),
   autoOpenOnStart: z.boolean().default(false)
 })
 

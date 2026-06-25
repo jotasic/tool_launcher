@@ -108,16 +108,19 @@ export class ProcessManager {
       for (const l of lines)
         if (l.length > 0) {
           this.log(programId, spec.name, stream, l)
-          this.maybeDetectUrl(programId, l)
+          this.maybeDetectUrl(programId, spec.name, l)
         }
     }
     child.stdout?.on('data', onData('stdout'))
     child.stderr?.on('data', onData('stderr'))
   }
 
-  private maybeDetectUrl(programId: string, line: string): void {
+  private maybeDetectUrl(programId: string, processName: string, line: string): void {
     const st = this.states.get(programId)
     if (!st || st.open?.mode !== 'url-from-log' || st.resolvedOpenTarget) return
+    // When a target process is set, only scan that process's output (so e.g. a
+    // backend's URL isn't grabbed when the user wants the frontend's).
+    if (st.open.logProcessName && st.open.logProcessName !== processName) return
     const pattern = st.open.logPattern || this.defaultLogPattern
     const found = matchUrlFromLog(line, pattern)
     if (found) {

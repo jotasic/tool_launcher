@@ -113,6 +113,25 @@ describe('ProcessManager open resolution', () => {
     children[0]!.emitStdout('http://127.0.0.1:8501\nhttp://127.0.0.1:9999\n')
     expect(opened).toEqual(['http://127.0.0.1:8501'])
   })
+
+  it('only detects url from the chosen process when logProcessName is set', async () => {
+    const { deps, children } = makeFakeDeps()
+    const pm = new ProcessManager(new LogStore(100), deps)
+    await pm.start(
+      prog({
+        processes: [
+          { name: 'backend', command: 'b', order: 0 },
+          { name: 'frontend', command: 'f', order: 1 }
+        ],
+        open: { mode: 'url-from-log', logProcessName: 'frontend', autoOpenOnStart: false }
+      })
+    )
+    // children[0] = backend (order 0), children[1] = frontend (order 1)
+    children[0]!.emitStdout('Backend on http://localhost:8000\n')
+    expect(pm.getRuntime('a').resolvedOpenTarget).toBeUndefined()
+    children[1]!.emitStdout('Local: http://localhost:5176\n')
+    expect(pm.getRuntime('a').resolvedOpenTarget).toBe('http://localhost:5176')
+  })
 })
 
 describe('ProcessManager.stop', () => {

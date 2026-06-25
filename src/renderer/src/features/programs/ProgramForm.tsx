@@ -158,7 +158,11 @@ export function ProgramForm({
             <Label>프로세스</Label>
             <ProcessFields value={processes} onChange={setProcesses} />
           </div>
-          <OpenFields value={openSpec} onChange={setOpenSpec} />
+          <OpenFields
+            value={openSpec}
+            onChange={setOpenSpec}
+            processNames={processes.map((p) => p.name).filter(Boolean)}
+          />
           <Button
             type="button"
             onClick={submit}

@@ -5,10 +5,12 @@ import type { OpenSpec, OpenMode } from '../../../../shared/types'
 
 export function OpenFields({
   value,
-  onChange
+  onChange,
+  processNames = []
 }: {
   value: OpenSpec
   onChange: (v: OpenSpec) => void
+  processNames?: string[]
 }) {
   return (
     <div className="space-y-2 rounded border p-3">
@@ -32,11 +34,33 @@ export function OpenFields({
         />
       )}
       {value.mode === 'url-from-log' && (
-        <Input
-          placeholder="정규식 (비우면 기본값 사용)"
-          value={value.logPattern ?? ''}
-          onChange={(e) => onChange({ ...value, logPattern: e.target.value })}
-        />
+        <div className="space-y-2">
+          <div>
+            <div className="mb-1 text-xs text-muted-foreground">
+              URL을 찾을 프로세스 (백엔드 URL이 잘못 잡히는 걸 방지)
+            </div>
+            <select
+              className="w-full rounded border p-2"
+              value={value.logProcessName ?? ''}
+              onChange={(e) => onChange({ ...value, logProcessName: e.target.value || undefined })}
+            >
+              <option value="">모든 프로세스 (처음 잡힌 URL)</option>
+              {processNames.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <div className="mb-1 text-xs text-muted-foreground">정규식 (비우면 기본값 사용)</div>
+            <Input
+              placeholder="https?://[^\s]+"
+              value={value.logPattern ?? ''}
+              onChange={(e) => onChange({ ...value, logPattern: e.target.value })}
+            />
+          </div>
+        </div>
       )}
       {value.mode !== 'none' && (
         <label className="flex items-center gap-2 text-sm">
