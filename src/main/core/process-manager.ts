@@ -8,6 +8,7 @@ import type {
   OpenSpec
 } from '../../shared/types'
 import { resolveStaticOpen, matchUrlFromLog } from './open-resolver'
+import { stripAnsi } from './ansi'
 
 export interface ChildLike {
   pid?: number
@@ -105,11 +106,13 @@ export class ProcessManager {
   private pipe(programId: string, spec: ProcessSpec, child: ChildLike): void {
     const onData = (stream: 'stdout' | 'stderr') => (chunk: Buffer | string) => {
       const lines = chunk.toString().split('\n')
-      for (const l of lines)
+      for (const raw of lines) {
+        const l = stripAnsi(raw)
         if (l.length > 0) {
           this.log(programId, spec.name, stream, l)
           this.maybeDetectUrl(programId, spec.name, l)
         }
+      }
     }
     child.stdout?.on('data', onData('stdout'))
     child.stderr?.on('data', onData('stderr'))

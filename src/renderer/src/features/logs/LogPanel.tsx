@@ -21,7 +21,7 @@ export function LogPanel({ programId }: { programId: string }) {
   }, [programId])
 
   return (
-    <pre className="mt-2 max-h-60 overflow-auto rounded bg-black p-2 text-xs text-green-300">
+    <pre className="mt-2 h-60 min-h-24 resize-y overflow-auto whitespace-pre-wrap break-all rounded bg-black p-2 text-xs text-green-300">
       {lines.map((l) => `${l.processName}| ${l.text}`).join('\n')}
     </pre>
   )

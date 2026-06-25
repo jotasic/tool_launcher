@@ -33,6 +33,16 @@ describe('ProcessManager.start (single process)', () => {
     expect(logs.get('a').map((l) => l.text)).toEqual(['hello', 'world'])
   })
 
+  it('strips ANSI color codes from captured logs', async () => {
+    const { deps, children } = makeFakeDeps()
+    const logs = new LogStore(100)
+    const pm = new ProcessManager(logs, deps)
+    await pm.start(prog())
+    const esc = String.fromCharCode(27)
+    children[0]!.emitStdout(`${esc}[32m${esc}[1minfo${esc}[0m ready\n`)
+    expect(logs.get('a').map((l) => l.text)).toEqual(['info ready'])
+  })
+
   it('marks error if spawn throws', async () => {
     const { deps } = makeFakeDeps()
     deps.spawn = () => {
