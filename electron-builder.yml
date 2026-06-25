@@ -1,4 +1,4 @@
-appId: com.taewookim.toollauncher
+appId: io.github.jotasic.toollauncher
 productName: Tool Launcher
 directories:
   buildResources: build
@@ -35,7 +35,7 @@ linux:
   target:
     - AppImage
     - deb
-  maintainer: taewookim
+  maintainer: jotasic
   category: Development
 appImage:
   artifactName: ${name}-${version}.${ext}
