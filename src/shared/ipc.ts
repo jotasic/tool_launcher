@@ -13,6 +13,7 @@ export interface IpcApi {
   'programs:export': () => Promise<string>
   'runtime:list': () => Promise<ProgramRuntime[]>
   'logs:get': (programId: string) => Promise<LogLine[]>
+  'logs:clear': (programId: string) => Promise<void>
   'settings:get': () => Promise<Settings>
   'settings:set': (s: Settings) => Promise<Settings>
   'dialog:pickDirectory': () => Promise<string | null>
@@ -38,6 +39,7 @@ export const INVOKE_CHANNELS = [
   'programs:export',
   'runtime:list',
   'logs:get',
+  'logs:clear',
   'settings:get',
   'settings:set',
   'dialog:pickDirectory',
