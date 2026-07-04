@@ -41,6 +41,12 @@ app.whenReady().then(async () => {
     `)
     await new Promise((r) => setTimeout(r, 900))
   }
+  // Optionally run arbitrary JS (e.g. open search and type a query) before capture.
+  if (process.env.TL_JS) {
+    const res = await win.webContents.executeJavaScript(`(async () => { ${process.env.TL_JS} })()`)
+    if (res !== undefined) console.log('TL_JS ->', res)
+    await new Promise((r) => setTimeout(r, 600))
+  }
   const img = await win.webContents.capturePage()
   fs.writeFileSync(OUT, img.toPNG())
   console.log('captured to', OUT)

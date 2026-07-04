@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { stripAnsi } from '../../shared/ansi'
 import type { LogLine } from '../../shared/types'
@@ -73,6 +73,13 @@ export class LogStore {
 
   get(programId: string): LogLine[] {
     return [...(this.buffers.get(programId) ?? [])]
+  }
+
+  /** 존재하는 로그 파일 경로, 없으면 null. */
+  existingLogFile(programId: string): string | null {
+    if (!this.logDir) return null
+    const path = join(this.logDir, `${programId}.log`)
+    return existsSync(path) ? path : null
   }
 
   clear(programId: string): void {

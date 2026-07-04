@@ -14,6 +14,8 @@ export interface IpcApi {
   'runtime:list': () => Promise<ProgramRuntime[]>
   'logs:get': (programId: string) => Promise<LogLine[]>
   'logs:clear': (programId: string) => Promise<void>
+  /** 로그 파일을 파일 탐색기에서 보여준다. 파일이 없으면 false. */
+  'logs:revealFile': (programId: string) => Promise<boolean>
   'settings:get': () => Promise<Settings>
   'settings:set': (s: Settings) => Promise<Settings>
   'dialog:pickDirectory': () => Promise<string | null>
@@ -40,6 +42,7 @@ export const INVOKE_CHANNELS = [
   'runtime:list',
   'logs:get',
   'logs:clear',
+  'logs:revealFile',
   'settings:get',
   'settings:set',
   'dialog:pickDirectory',

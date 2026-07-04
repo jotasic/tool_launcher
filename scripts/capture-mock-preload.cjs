@@ -49,8 +49,12 @@ const logs = [
   { programId: 'p1', processName: 'frontend', stream: 'stdout', text: `  ${E}[32m➜${E}[39m  ${E}[1mLocal${E}[22m:   ${E}[36mhttp://localhost:${E}[1m5173${E}[22m/${E}[39m`, ts: 0 },
   { programId: 'p1', processName: 'frontend', stream: 'stdout', text: `${E}[38;5;208m256색 예제${E}[0m 그리고 ${E}[38;2;120;180;255m트루컬러${E}[0m 텍스트`, ts: 0 },
   { programId: 'p1', processName: 'git', stream: 'system', text: 'git pull 실행 중...', ts: 0 },
-  { programId: 'p1', processName: 'git', stream: 'system', text: 'Already up to date.', ts: 0 }
-]
+  { programId: 'p1', processName: 'git', stream: 'system', text: 'Already up to date.', ts: 0 },
+  // 중복접기 데모용 연속 반복 줄
+  { programId: 'p1', processName: 'backend', stream: 'stdout', text: `${E}[32mINFO${E}[0m:     GET /api/health 200 OK`, ts: 0 },
+  { programId: 'p1', processName: 'backend', stream: 'stdout', text: `${E}[32mINFO${E}[0m:     GET /api/health 200 OK`, ts: 0 },
+  { programId: 'p1', processName: 'backend', stream: 'stdout', text: `${E}[32mINFO${E}[0m:     GET /api/health 200 OK`, ts: 0 }
+].map((l, i) => ({ ...l, ts: 1751600000000 + i * 1700 }))
 
 const api = {
   invoke: async (channel) => {
@@ -68,6 +72,8 @@ const api = {
         }
       case 'logs:get':
         return logs
+      case 'logs:revealFile':
+        return false
       default:
         return undefined
     }

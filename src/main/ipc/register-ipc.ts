@@ -49,6 +49,12 @@ export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContex
   ipcMain.handle('runtime:list', () => store.listPrograms().map((p) => processes.getRuntime(p.id)))
   ipcMain.handle('logs:get', (_e, programId: string) => logs.get(programId))
   ipcMain.handle('logs:clear', (_e, programId: string) => logs.clear(programId))
+  ipcMain.handle('logs:revealFile', (_e, programId: string) => {
+    const path = logs.existingLogFile(programId)
+    if (!path) return false
+    shell.showItemInFolder(path)
+    return true
+  })
 
   ipcMain.handle('settings:get', () => store.getSettings())
   ipcMain.handle('settings:set', (_e, s) => {

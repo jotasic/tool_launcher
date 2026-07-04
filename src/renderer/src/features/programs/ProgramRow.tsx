@@ -96,7 +96,7 @@ export function ProgramRow({ program }: { program: Program }) {
       {status === 'error' && rt?.error && (
         <p className="mt-1 text-xs text-destructive">{rt.error}</p>
       )}
-      {showLog && <LogPanel programId={program.id} />}
+      {showLog && <LogPanel programId={program.id} onCollapse={() => setShowLog(false)} />}
     </li>
   )
 }
