@@ -1,10 +1,48 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { ipc } from '../../lib/ipc'
+import { parseAnsi, stripAnsi, type AnsiSegment } from '../../../../shared/ansi'
 import type { LogLine } from '../../../../shared/types'
 
 // Cap how many lines we keep in the view so a chatty program can't grow the
 // DOM unbounded and cause jank (full history still lives in the log file).
 const MAX = 2000
+
+// Parse each line's ANSI codes once (keyed by line object), not on every render.
+const segCache = new WeakMap<LogLine, AnsiSegment[]>()
+function segmentsOf(line: LogLine): AnsiSegment[] {
+  let segs = segCache.get(line)
+  if (!segs) {
+    segs = parseAnsi(line.text)
+    segCache.set(line, segs)
+  }
+  return segs
+}
+
+function styleOf(s: AnsiSegment): React.CSSProperties | undefined {
+  if (!s.color && !s.bold && !s.dim && !s.underline) return undefined
+  return {
+    color: s.color,
+    fontWeight: s.bold ? 600 : undefined,
+    opacity: s.dim ? 0.65 : undefined,
+    textDecoration: s.underline ? 'underline' : undefined
+  }
+}
+
+// memo: appended batches leave existing line objects untouched, so earlier
+// rows skip re-rendering — only new lines mount.
+const Line = memo(function Line({ line }: { line: LogLine }): React.JSX.Element {
+  return (
+    <span>
+      <span className="text-zinc-500">{line.processName}| </span>
+      {segmentsOf(line).map((s, j) => (
+        <span key={j} style={styleOf(s)}>
+          {s.text}
+        </span>
+      ))}
+      {'\n'}
+    </span>
+  )
+})
 
 export function LogPanel({ programId }: { programId: string }): React.JSX.Element {
   const [lines, setLines] = useState<LogLine[]>([])
@@ -69,15 +107,15 @@ export function LogPanel({ programId }: { programId: string }): React.JSX.Elemen
     setAtBottom(true)
   }
 
-  const asText = (): string => lines.map((l) => `${l.processName}| ${l.text}`).join('\n')
-
   const clear = async (): Promise<void> => {
     await ipc.invoke('logs:clear', programId)
     setLines([])
   }
 
   const copy = (): void => {
-    void navigator.clipboard.writeText(asText())
+    // copy plain text — escape codes are display-only
+    const text = lines.map((l) => `${l.processName}| ${stripAnsi(l.text)}`).join('\n')
+    void navigator.clipboard.writeText(text)
   }
 
   return (
@@ -98,9 +136,9 @@ export function LogPanel({ programId }: { programId: string }): React.JSX.Elemen
       <pre
         ref={preRef}
         onScroll={onScroll}
-        className="m-0 h-[28rem] min-h-32 resize-y overflow-auto whitespace-pre-wrap break-all bg-black p-2 font-mono text-xs leading-relaxed text-green-400"
+        className="m-0 h-[max(28rem,70vh)] min-h-32 resize-y overflow-auto whitespace-pre-wrap break-all bg-black p-2 font-mono text-xs leading-relaxed text-[#cccccc]"
       >
-        {lines.length === 0 ? '(로그 없음)' : asText()}
+        {lines.length === 0 ? '(로그 없음)' : lines.map((l, i) => <Line key={i} line={l} />)}
       </pre>
       {!atBottom && (
         <button

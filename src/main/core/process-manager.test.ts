@@ -33,14 +33,24 @@ describe('ProcessManager.start (single process)', () => {
     expect(logs.get('a').map((l) => l.text)).toEqual(['hello', 'world'])
   })
 
-  it('strips ANSI color codes from captured logs', async () => {
+  it('keeps ANSI codes in the log buffer (renderer renders the colors)', async () => {
     const { deps, children } = makeFakeDeps()
     const logs = new LogStore(100)
     const pm = new ProcessManager(logs, deps)
     await pm.start(prog())
     const esc = String.fromCharCode(27)
     children[0]!.emitStdout(`${esc}[32m${esc}[1minfo${esc}[0m ready\n`)
-    expect(logs.get('a').map((l) => l.text)).toEqual(['info ready'])
+    expect(logs.get('a').map((l) => l.text)).toEqual([`${esc}[32m${esc}[1minfo${esc}[0m ready`])
+  })
+
+  it('skips lines that are only escape codes (no visible text)', async () => {
+    const { deps, children } = makeFakeDeps()
+    const logs = new LogStore(100)
+    const pm = new ProcessManager(logs, deps)
+    await pm.start(prog())
+    const esc = String.fromCharCode(27)
+    children[0]!.emitStdout(`${esc}[2K${esc}[0m\n`)
+    expect(logs.get('a')).toEqual([])
   })
 
   it('marks error if spawn throws', async () => {
@@ -194,6 +204,15 @@ describe('ProcessManager open resolution', () => {
     await pm.start(prog({ open: { mode: 'url-from-log', autoOpenOnStart: false } }))
     children[0]!.emitStdout('Running on http://127.0.0.1:8501\n')
     expect(pm.getRuntime('a').resolvedOpenTarget).toBe('http://127.0.0.1:8501')
+  })
+
+  it('detects a clean url from an ANSI-colored line (codes must not leak in)', async () => {
+    const { deps, children } = makeFakeDeps()
+    const pm = new ProcessManager(new LogStore(100), deps)
+    await pm.start(prog({ open: { mode: 'url-from-log', autoOpenOnStart: false } }))
+    const esc = String.fromCharCode(27)
+    children[0]!.emitStdout(`${esc}[32m➜ Local: ${esc}[36mhttp://localhost:5173/${esc}[39m\n`)
+    expect(pm.getRuntime('a').resolvedOpenTarget).toBe('http://localhost:5173/')
   })
 
   it('fires onOpenRequested once when autoOpenOnStart and target resolves', async () => {

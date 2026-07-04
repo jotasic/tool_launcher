@@ -92,6 +92,23 @@ describe('LogStore file logging', () => {
     expect(existsSync(join(logDir, 'prog2.log'))).toBe(false)
   })
 
+  it('writes ANSI-stripped text to the log file', () => {
+    const logDir = mkdtempSync(join(tmpdir(), 'log-store-test-'))
+    const s = new LogStore(100, { logDir })
+    s.setFileLogging(true)
+    const esc = String.fromCharCode(27)
+    s.append({
+      programId: 'prog4',
+      processName: 'web',
+      stream: 'stdout',
+      text: `${esc}[32minfo${esc}[0m ready`,
+      ts: 0
+    })
+    const contents = readFileSync(join(logDir, 'prog4.log'), 'utf-8')
+    expect(contents).toContain('info ready')
+    expect(contents).not.toContain(esc)
+  })
+
   it('stops writing after setFileLogging(false)', () => {
     const logDir = mkdtempSync(join(tmpdir(), 'log-store-test-'))
     const s = new LogStore(100, { logDir })

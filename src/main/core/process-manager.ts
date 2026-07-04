@@ -8,7 +8,7 @@ import type {
   OpenSpec
 } from '../../shared/types'
 import { resolveStaticOpen, matchUrlFromLog } from './open-resolver'
-import { stripAnsi } from './ansi'
+import { stripAnsi } from '../../shared/ansi'
 
 export interface ChildLike {
   pid?: number
@@ -108,10 +108,13 @@ export class ProcessManager {
     const onData = (stream: 'stdout' | 'stderr') => (chunk: Buffer | string) => {
       const lines = chunk.toString().split('\n')
       for (const raw of lines) {
-        const l = stripAnsi(raw)
-        if (l.length > 0) {
-          this.log(programId, spec.name, stream, l)
-          this.maybeDetectUrl(programId, spec.name, l)
+        // Keep the raw line (renderer renders its ANSI colors); use the
+        // stripped text for visibility check and URL detection so color
+        // codes can't corrupt the matched URL.
+        const clean = stripAnsi(raw)
+        if (clean.length > 0) {
+          this.log(programId, spec.name, stream, raw)
+          this.maybeDetectUrl(programId, spec.name, clean)
         }
       }
     }

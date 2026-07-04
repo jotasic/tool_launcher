@@ -1,5 +1,6 @@
 import { appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { stripAnsi } from '../../shared/ansi'
 import type { LogLine } from '../../shared/types'
 
 export interface LogStoreOpts {
@@ -53,7 +54,8 @@ export class LogStore {
           this.logDirCreated = true
         }
         const ts = new Date(line.ts).toISOString()
-        const entry = `[${ts}] ${line.processName}(${line.stream}): ${line.text}\n`
+        // log files stay plain text — no escape codes
+        const entry = `[${ts}] ${line.processName}(${line.stream}): ${stripAnsi(line.text)}\n`
         appendFileSync(join(this.logDir, `${line.programId}.log`), entry, 'utf-8')
       } catch {
         // file logging must not crash the app

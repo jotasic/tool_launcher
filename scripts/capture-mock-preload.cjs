@@ -38,11 +38,16 @@ const runtimes = [
   { programId: 'p3', status: 'error', error: 'process worker failed to start: spawn pythn ENOENT' }
 ]
 
+const E = String.fromCharCode(27) // ESC
+// 실제 uvicorn/vite가 찍는 것과 같은 ANSI 컬러 로그 (색 렌더링 검증용)
 const logs = [
-  { programId: 'p1', processName: 'backend', stream: 'stdout', text: 'INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)', ts: 0 },
-  { programId: 'p1', processName: 'backend', stream: 'stdout', text: 'INFO:     Application startup complete.', ts: 0 },
-  { programId: 'p1', processName: 'frontend', stream: 'stdout', text: 'VITE v5.4.2  ready in 312 ms', ts: 0 },
-  { programId: 'p1', processName: 'frontend', stream: 'stdout', text: '➜  Local:   http://localhost:5173/', ts: 0 },
+  { programId: 'p1', processName: 'backend', stream: 'stdout', text: `${E}[32mINFO${E}[0m:     Uvicorn running on ${E}[1mhttp://127.0.0.1:8000${E}[0m (Press CTRL+C to quit)`, ts: 0 },
+  { programId: 'p1', processName: 'backend', stream: 'stdout', text: `${E}[32mINFO${E}[0m:     Application startup complete.`, ts: 0 },
+  { programId: 'p1', processName: 'backend', stream: 'stderr', text: `${E}[33mWARNING${E}[0m:  StatReload detected changes in 'main.py'. Reloading...`, ts: 0 },
+  { programId: 'p1', processName: 'backend', stream: 'stderr', text: `${E}[31mERROR${E}[0m:    Exception in ASGI application`, ts: 0 },
+  { programId: 'p1', processName: 'frontend', stream: 'stdout', text: `${E}[36m  VITE v5.4.2${E}[39m  ${E}[32mready in 312 ms${E}[39m`, ts: 0 },
+  { programId: 'p1', processName: 'frontend', stream: 'stdout', text: `  ${E}[32m➜${E}[39m  ${E}[1mLocal${E}[22m:   ${E}[36mhttp://localhost:${E}[1m5173${E}[22m/${E}[39m`, ts: 0 },
+  { programId: 'p1', processName: 'frontend', stream: 'stdout', text: `${E}[38;5;208m256색 예제${E}[0m 그리고 ${E}[38;2;120;180;255m트루컬러${E}[0m 텍스트`, ts: 0 },
   { programId: 'p1', processName: 'git', stream: 'system', text: 'git pull 실행 중...', ts: 0 },
   { programId: 'p1', processName: 'git', stream: 'system', text: 'Already up to date.', ts: 0 }
 ]
