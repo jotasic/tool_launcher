@@ -9,7 +9,12 @@ export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContex
   ipcMain.handle('programs:list', () => store.listPrograms())
   ipcMain.handle('programs:create', (_e, p: Omit<Program, 'id'>) => store.createProgram(p))
   ipcMain.handle('programs:update', (_e, p: Program) => store.updateProgram(p))
-  ipcMain.handle('programs:delete', (_e, id: string) => store.deleteProgram(id))
+  ipcMain.handle('programs:delete', async (_e, id: string) => {
+    // Deleting a running program must not leave its processes running as orphans.
+    await processes.dispose(id)
+    logs.clear(id)
+    store.deleteProgram(id)
+  })
   ipcMain.handle('programs:import', (_e, json: string) => store.importPrograms(json))
   ipcMain.handle('programs:export', () => store.exportPrograms())
 
@@ -17,14 +22,16 @@ export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContex
     const program = store.listPrograms().find((p) => p.id === id)
     if (!program) return
     if (program.git?.autoPullOnStart) {
+      // Surface pull output in the program's own log panel ('git:progress' is
+      // only listened to while the clone dialog is open, so it was invisible here).
+      const sys = (text: string): void =>
+        logs.append({ programId: id, processName: 'git', stream: 'system', text, ts: Date.now() })
+      sys('git pull 실행 중...')
       try {
-        await git.pull(program.workingDir, (line) => {
-          if (!win.isDestroyed()) win.webContents.send('git:progress', { text: line })
-        })
+        await git.pull(program.workingDir, sys)
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        if (!win.isDestroyed())
-          win.webContents.send('git:progress', { text: `git pull 실패: ${msg}` })
+        sys(`git pull 실패: ${msg} — 무시하고 시작합니다`)
       }
     }
     await processes.start(program)
@@ -47,6 +54,7 @@ export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContex
   ipcMain.handle('settings:set', (_e, s) => {
     const updated = store.setSettings(s)
     logs.setFileLogging(updated.logToFile)
+    logs.setMaxLines(updated.logBufferLines)
     return updated
   })
 

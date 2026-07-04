@@ -17,6 +17,9 @@ export class FakeChild extends EventEmitter implements ChildLike {
   emitExit(code: number | null, signal: string | null = null) {
     this.emit('exit', code, signal)
   }
+  emitError(err: Error) {
+    this.emit('error', err)
+  }
 }
 
 export function makeFakeDeps(): { deps: ProcessDeps; children: FakeChild[] } {

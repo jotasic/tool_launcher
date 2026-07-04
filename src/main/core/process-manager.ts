@@ -15,6 +15,7 @@ export interface ChildLike {
   stdout: { on(ev: 'data', cb: (chunk: Buffer | string) => void): void } | null
   stderr: { on(ev: 'data', cb: (chunk: Buffer | string) => void): void } | null
   on(ev: 'exit', cb: (code: number | null, signal: string | null) => void): void
+  on(ev: 'error', cb: (err: Error) => void): void
   kill(signal?: string): boolean
 }
 
@@ -133,13 +134,21 @@ export class ProcessManager {
   }
 
   async start(program: Program): Promise<void> {
+    // Never spawn a second copy: ignore double-starts, and when restarting
+    // after a crash (status 'error') kill whatever survived from the last run
+    // first so processes don't leak as orphans.
+    const prev = this.states.get(program.id)
+    if (prev && (prev.status === 'starting' || prev.status === 'running')) return
+    if (prev && prev.procs.length > 0) await this.stop(program.id)
+
     const staticTarget = resolveStaticOpen(program.open)
-    this.states.set(program.id, {
+    const st: ProgramState = {
       status: 'starting',
       procs: [],
       open: program.open,
       resolvedOpenTarget: staticTarget
-    })
+    }
+    this.states.set(program.id, st)
     this.setStatus(program.id, {})
     if (staticTarget && program.open?.autoOpenOnStart) {
       this.requestOpen(program.id, staticTarget)
@@ -148,6 +157,9 @@ export class ProcessManager {
     const ordered = [...program.processes].sort((a, b) => a.order - b.order)
     try {
       for (const spec of ordered) {
+        // stop() during a startDelay (or an early crash) flips the status:
+        // abort the remaining spawns instead of starting into a dead state.
+        if (st.status !== 'starting') return
         const child = this.deps.spawn(spec.command, spec.args ?? [], {
           cwd: spec.cwd ?? program.workingDir,
           env: { ...process.env, ...spec.env },
@@ -164,12 +176,22 @@ export class ProcessManager {
             })
           }
         })
-        this.states.get(program.id)!.procs.push(running)
+        // spawn failure (e.g. command typo -> ENOENT) emits 'error' and never
+        // 'exit' — without this the program would sit in 'starting' forever.
+        child.on('error', (err) => {
+          running.exited = true
+          this.log(program.id, spec.name, 'system', `실행 실패: ${err.message}`)
+          this.setStatus(program.id, {
+            status: 'error',
+            error: `process ${spec.name} failed to start: ${err.message}`
+          })
+        })
+        st.procs.push(running)
         if (spec.startDelayMs && spec.startDelayMs > 0) {
           await this.deps.delay(spec.startDelayMs)
         }
       }
-      this.setStatus(program.id, { status: 'running', error: undefined })
+      if (st.status === 'starting') this.setStatus(program.id, { status: 'running' })
     } catch (err) {
       this.setStatus(program.id, { status: 'error', error: (err as Error).message })
     }
@@ -189,6 +211,12 @@ export class ProcessManager {
     }
     st.procs = []
     this.setStatus(programId, { status: 'stopped', error: undefined })
+  }
+
+  /** Stop everything and forget the program — for when it is deleted. */
+  async dispose(programId: string): Promise<void> {
+    await this.stop(programId)
+    this.states.delete(programId)
   }
 
   private waitExit(rp: RunningProc, ms: number): Promise<boolean> {

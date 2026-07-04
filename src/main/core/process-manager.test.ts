@@ -53,6 +53,88 @@ describe('ProcessManager.start (single process)', () => {
     expect(pm.getRuntime('a').status).toBe('error')
     expect(pm.getRuntime('a').error).toContain('ENOENT')
   })
+
+  it("marks error and logs when the child emits 'error' (e.g. command typo)", async () => {
+    // ENOENT with shell:false arrives as an async 'error' event and never 'exit' —
+    // the program must not sit in starting/running forever.
+    const { deps, children } = makeFakeDeps()
+    const logs = new LogStore(100)
+    const pm = new ProcessManager(logs, deps)
+    await pm.start(prog())
+    children[0]!.emitError(new Error('spawn pythn ENOENT'))
+    expect(pm.getRuntime('a').status).toBe('error')
+    expect(pm.getRuntime('a').error).toContain('ENOENT')
+    expect(logs.get('a').some((l) => l.stream === 'system' && l.text.includes('ENOENT'))).toBe(true)
+  })
+})
+
+describe('ProcessManager restart safety', () => {
+  it('ignores start while already running (no duplicate spawn)', async () => {
+    const { deps, children } = makeFakeDeps()
+    const pm = new ProcessManager(new LogStore(100), deps)
+    await pm.start(prog())
+    await pm.start(prog())
+    expect(children).toHaveLength(1)
+    expect(pm.getRuntime('a').status).toBe('running')
+  })
+
+  it('kills survivors from a crashed run before restarting', async () => {
+    const { deps, children } = makeFakeDeps()
+    const killed: number[] = []
+    deps.killTree = async (pid, sig) => {
+      killed.push(pid)
+      children.find((c) => c.pid === pid)?.emitExit(0, sig)
+    }
+    const pm = new ProcessManager(new LogStore(100), deps, { stopGraceMs: 20 })
+    await pm.start(
+      prog({
+        processes: [
+          { name: 'backend', command: 'b', order: 0 },
+          { name: 'frontend', command: 'f', order: 1 }
+        ]
+      })
+    )
+    children[0]!.emitExit(1, null) // backend crashes -> status error, frontend alive
+    expect(pm.getRuntime('a').status).toBe('error')
+    await pm.start(prog({ processes: [{ name: 'p', command: 'x', order: 0 }] }))
+    expect(killed).toContain(children[1]!.pid) // survivor was cleaned up
+    expect(pm.getRuntime('a').status).toBe('running')
+  })
+
+  it('aborts remaining spawns when stopped during a start delay', async () => {
+    const { deps, children } = makeFakeDeps()
+    deps.killTree = async (pid, sig) => {
+      children.find((c) => c.pid === pid)?.emitExit(0, sig)
+    }
+    const pm = new ProcessManager(new LogStore(100), deps, { stopGraceMs: 20 })
+    deps.delay = async () => {
+      await pm.stop('a') // user hits 정지 while proc2 is still waiting to start
+    }
+    await pm.start(
+      prog({
+        processes: [
+          { name: 'p1', command: 'x', order: 0, startDelayMs: 10 },
+          { name: 'p2', command: 'y', order: 1 }
+        ]
+      })
+    )
+    expect(children).toHaveLength(1) // p2 was never spawned
+    expect(pm.getRuntime('a').status).toBe('stopped')
+  })
+
+  it('dispose stops processes and forgets the program', async () => {
+    const { deps, children } = makeFakeDeps()
+    const killed: number[] = []
+    deps.killTree = async (pid, sig) => {
+      killed.push(pid)
+      children.find((c) => c.pid === pid)?.emitExit(0, sig)
+    }
+    const pm = new ProcessManager(new LogStore(100), deps, { stopGraceMs: 20 })
+    await pm.start(prog())
+    await pm.dispose('a')
+    expect(killed).toContain(children[0]!.pid)
+    expect(pm.getRuntime('a').status).toBe('stopped')
+  })
 })
 
 describe('ProcessManager multi-process and crash', () => {

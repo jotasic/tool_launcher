@@ -26,6 +26,14 @@ export class LogStore {
     this.fileLogging = enabled
   }
 
+  /** Apply a changed buffer-size setting immediately (trims oversized buffers). */
+  setMaxLines(n: number): void {
+    this.maxLines = n
+    for (const buf of this.buffers.values()) {
+      if (buf.length > n) buf.splice(0, buf.length - n)
+    }
+  }
+
   append(line: LogLine): void {
     const buf = this.buffers.get(line.programId) ?? []
     buf.push(line)

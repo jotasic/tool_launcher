@@ -30,6 +30,15 @@ describe('LogStore', () => {
     expect(s.get('a').map((l) => l.text)).toEqual(['2', '3'])
   })
 
+  it('setMaxLines trims existing buffers and applies to new appends', () => {
+    const s = new LogStore(10)
+    for (let i = 1; i <= 5; i++) s.append(line('a', String(i)))
+    s.setMaxLines(2)
+    expect(s.get('a').map((l) => l.text)).toEqual(['4', '5'])
+    s.append(line('a', '6'))
+    expect(s.get('a').map((l) => l.text)).toEqual(['5', '6'])
+  })
+
   it('clears a program log', () => {
     const s = new LogStore(10)
     s.append(line('a', '1'))
