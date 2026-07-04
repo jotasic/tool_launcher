@@ -11,7 +11,7 @@ export function ProgramList() {
         <ProgramForm trigger={<Button>+ 프로그램 추가</Button>} />
       </div>
       {programs.length === 0 ? (
-        <p className="text-gray-500">등록된 프로그램이 없습니다.</p>
+        <p className="text-muted-foreground">등록된 프로그램이 없습니다.</p>
       ) : (
         <ul className="space-y-2">
           {programs.map((p) => (

@@ -40,6 +40,9 @@ export function ProgramForm({
   const [cloneLog, setCloneLog] = useState<string[]>([])
   const logEndRef = useRef<HTMLDivElement>(null)
 
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
   useEffect(() => {
     if (open) {
       // Form reset on dialog open: guarded by `if (open)` so it only runs when the
@@ -50,6 +53,7 @@ export function ProgramForm({
       setProcesses(existing?.processes ?? [{ name: 'proc1', command: '', order: 0 }])
       setOpenSpec(existing?.open ?? emptyOpen)
       setGit(existing?.git)
+      setSaveError(null)
       /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [open, existing])
@@ -103,9 +107,17 @@ export function ProgramForm({
       open: openSpec,
       ...(git ? { git } : {})
     }
-    if (existing) await update({ ...existing, ...payload })
-    else await create(payload)
-    setOpen(false)
+    setSaving(true)
+    setSaveError(null)
+    try {
+      if (existing) await update({ ...existing, ...payload })
+      else await create(payload)
+      setOpen(false)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSaving(false)
+    }
   }
 
   const canClone = !!(git?.repoUrl && workingDir)
@@ -163,13 +175,16 @@ export function ProgramForm({
             onChange={setOpenSpec}
             processNames={processes.map((p) => p.name).filter(Boolean)}
           />
-          <Button
-            type="button"
-            onClick={submit}
-            disabled={!name || !workingDir || processes.some((p) => !p.command)}
-          >
-            저장
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              onClick={submit}
+              disabled={saving || !name || !workingDir || processes.some((p) => !p.command)}
+            >
+              {saving ? '저장 중...' : '저장'}
+            </Button>
+            {saveError && <span className="text-sm text-destructive">{saveError}</span>}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

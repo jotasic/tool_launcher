@@ -9,7 +9,11 @@ const fs = require('fs')
 const root = path.join(__dirname, '..')
 const OUT = process.env.TL_SHOT || path.join(root, 'electron-shot.png')
 const RENDERER = path.join(root, 'out', 'renderer', 'index.html')
-const PRELOAD = path.join(root, 'out', 'preload', 'index.js')
+// TL_MOCK=1 loads a preload that serves fixture data (rows in every state)
+// instead of the real IPC bridge, since this script registers no handlers.
+const PRELOAD = process.env.TL_MOCK
+  ? path.join(__dirname, 'capture-mock-preload.cjs')
+  : path.join(root, 'out', 'preload', 'index.js')
 
 app.whenReady().then(async () => {
   const win = new BrowserWindow({
@@ -26,7 +30,11 @@ app.whenReady().then(async () => {
     await win.webContents.executeJavaScript(`
       (() => {
         const btns = [...document.querySelectorAll('button')]
-        const b = btns.find((x) => (x.textContent || '').includes(${JSON.stringify(clickText)}))
+        const want = ${JSON.stringify(clickText)}
+        // exact match first so e.g. '로그' doesn't hit '프로그램 추가'
+        const b =
+          btns.find((x) => (x.textContent || '').trim() === want) ||
+          btns.find((x) => (x.textContent || '').includes(want))
         if (b) { b.click(); return true }
         return false
       })()

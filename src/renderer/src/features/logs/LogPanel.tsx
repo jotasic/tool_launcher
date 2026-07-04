@@ -82,15 +82,15 @@ export function LogPanel({ programId }: { programId: string }): React.JSX.Elemen
 
   return (
     <div className="relative mt-2 overflow-hidden rounded border">
-      <div className="flex items-center justify-between border-b bg-gray-50 px-2 py-1 text-xs">
-        <span className="text-gray-500">
+      <div className="flex items-center justify-between border-b bg-muted/50 px-2 py-1 text-xs">
+        <span className="text-muted-foreground">
           {lines.length} 줄{!atBottom && ' · ⏸ 스크롤 중(자동정지)'}
         </span>
         <div className="flex gap-1">
-          <button className="rounded px-2 py-0.5 hover:bg-gray-200" onClick={copy}>
+          <button className="rounded px-2 py-0.5 hover:bg-accent" onClick={copy}>
             복사
           </button>
-          <button className="rounded px-2 py-0.5 text-red-600 hover:bg-gray-200" onClick={clear}>
+          <button className="rounded px-2 py-0.5 text-destructive hover:bg-accent" onClick={clear}>
             지우기
           </button>
         </div>
