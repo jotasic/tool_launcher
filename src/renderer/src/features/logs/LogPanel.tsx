@@ -3,7 +3,7 @@ import { ipc } from '../../lib/ipc'
 import { stripAnsi } from '../../../../shared/ansi'
 import type { LogLine } from '../../../../shared/types'
 import { Line } from './log-render'
-import { findRanges, textOf, type DisplayLine } from './log-utils'
+import { findRanges, findRangesRegex, levelOf, textOf, type DisplayLine } from './log-utils'
 
 // Cap how many lines we keep in the view so a chatty program can't grow the
 // DOM unbounded and cause jank (full history still lives in the log file).
@@ -31,6 +31,7 @@ export function LogPanel({
   // 표시 옵션
   const [procFilter, setProcFilter] = useState<Set<string>>(new Set())
   const [stderrOnly, setStderrOnly] = useState(false)
+  const [levelFilter, setLevelFilter] = useState<Set<string>>(new Set())
   const [wrap, setWrap] = useState(true)
   const [showTime, setShowTime] = useState(false)
   const [collapseDupes, setCollapseDupes] = useState(false)
@@ -46,6 +47,7 @@ export function LogPanel({
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [filterMode, setFilterMode] = useState(false)
+  const [regexMode, setRegexMode] = useState(false)
   const [activeMatch, setActiveMatch] = useState(-1)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -98,11 +100,30 @@ export function LogPanel({
   // ── 필터 → 검색 필터 → 중복 접기 파이프라인 ──────────────────────────
   const q = searchOpen ? query.trim().toLowerCase() : ''
 
+  // 정규식 모드: 유효하지 않으면 null (입력창 빨간 테두리, 매치 없음)
+  const regex = useMemo(() => {
+    if (!q || !regexMode) return null
+    try {
+      return new RegExp(query.trim(), 'gi')
+    } catch {
+      return null
+    }
+  }, [q, query, regexMode])
+  const regexInvalid = regexMode && q.length > 0 && regex === null
+
+  const rangesOf = (l: LogLine): Array<[number, number]> =>
+    regexMode
+      ? regex
+        ? findRangesRegex(textOf(l), regex)
+        : []
+      : findRanges(textOf(l).toLowerCase(), q)
+
   const visible: DisplayLine[] = useMemo(() => {
     let arr = lines
     if (procFilter.size > 0) arr = arr.filter((l) => procFilter.has(l.processName))
     if (stderrOnly) arr = arr.filter((l) => l.stream === 'stderr')
-    if (q && filterMode) arr = arr.filter((l) => textOf(l).toLowerCase().includes(q))
+    if (levelFilter.size > 0) arr = arr.filter((l) => levelFilter.has(levelOf(l) ?? ''))
+    if (q && filterMode) arr = arr.filter((l) => rangesOf(l).length > 0)
     if (!collapseDupes) return arr.map((line) => ({ line, count: 1 }))
     const out: DisplayLine[] = []
     for (const line of arr) {
@@ -112,17 +133,19 @@ export function LogPanel({
       } else out.push({ line, count: 1 })
     }
     return out
-  }, [lines, procFilter, stderrOnly, q, filterMode, collapseDupes])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rangesOf는 q/regex에서 파생
+  }, [lines, procFilter, stderrOnly, levelFilter, q, regex, filterMode, collapseDupes])
 
   const matches = useMemo(() => {
     if (!q) return []
     const res: Array<{ idx: number; ranges: Array<[number, number]> }> = []
     visible.forEach((dl, idx) => {
-      const ranges = findRanges(textOf(dl.line).toLowerCase(), q)
+      const ranges = rangesOf(dl.line)
       if (ranges.length > 0) res.push({ idx, ranges })
     })
     return res
-  }, [visible, q])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rangesOf는 q/regex에서 파생
+  }, [visible, q, regex])
   const rangesMap = useMemo(() => new Map(matches.map((m) => [m.idx, m.ranges])), [matches])
 
   // activeMatch === -1 은 "자동: 가장 최근 매치". 탐색하면 절대 인덱스가 되고
@@ -173,6 +196,15 @@ export function LogPanel({
       const next = new Set(prev)
       if (next.has(name)) next.delete(name)
       else next.add(name)
+      return next
+    })
+  }
+
+  const toggleLevel = (lv: 'error' | 'warn'): void => {
+    setLevelFilter((prev) => {
+      const next = new Set(prev)
+      if (next.has(lv)) next.delete(lv)
+      else next.add(lv)
       return next
     })
   }
@@ -250,6 +282,20 @@ export function LogPanel({
         <button className={chip(stderrOnly)} onClick={() => setStderrOnly((v) => !v)}>
           stderr만
         </button>
+        <button
+          className={chip(levelFilter.has('error'))}
+          onClick={() => toggleLevel('error')}
+          title="ERROR/FATAL/Exception 등이 포함된 줄만"
+        >
+          오류
+        </button>
+        <button
+          className={chip(levelFilter.has('warn'))}
+          onClick={() => toggleLevel('warn')}
+          title="WARN/WARNING이 포함된 줄만"
+        >
+          경고
+        </button>
         <span className="mx-1 h-3 w-px bg-border" />
         <button className={chip(wrap)} onClick={() => setWrap((v) => !v)} title="긴 줄 줄바꿈">
           줄바꿈
@@ -318,11 +364,29 @@ export function LogPanel({
               if (e.key === 'Enter') move(e.shiftKey ? -1 : 1)
               if (e.key === 'Escape') closeSearch()
             }}
-            placeholder="검색 (Enter: 다음, Shift+Enter: 이전)"
-            className="h-6 w-64 rounded border border-input bg-background px-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            placeholder={
+              regexMode ? '정규식 검색 (예: GET|POST)' : '검색 (Enter: 다음, Shift+Enter: 이전)'
+            }
+            className={`h-6 w-64 rounded border bg-background px-2 focus-visible:outline-none focus-visible:ring-1 ${regexInvalid ? 'border-destructive focus-visible:ring-destructive' : 'border-input focus-visible:ring-ring'}`}
           />
+          <button
+            className={chip(regexMode)}
+            onClick={() => {
+              setRegexMode((v) => !v)
+              setActiveMatch(-1)
+            }}
+            title="정규식 검색"
+          >
+            .*
+          </button>
           <span className="w-16 text-center text-muted-foreground">
-            {matches.length > 0 ? `${effActive + 1}/${matches.length} 줄` : q ? '0 줄' : ''}
+            {regexInvalid
+              ? '식 오류'
+              : matches.length > 0
+                ? `${effActive + 1}/${matches.length} 줄`
+                : q
+                  ? '0 줄'
+                  : ''}
           </span>
           <button className={btn} onClick={() => move(-1)} title="이전 매치">
             ▲

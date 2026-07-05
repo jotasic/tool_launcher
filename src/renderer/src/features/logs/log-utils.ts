@@ -36,6 +36,39 @@ export function findRanges(text: string, query: string): Array<[number, number]>
   return ranges
 }
 
+/** 정규식 검색의 모든 등장 위치 (re는 g 플래그 필수). 빈 매치는 건너뜀. */
+export function findRangesRegex(text: string, re: RegExp): Array<[number, number]> {
+  const ranges: Array<[number, number]> = []
+  re.lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text))) {
+    if (m[0].length === 0) {
+      re.lastIndex++ // 빈 매치(a* 등)로 무한루프 방지
+      continue
+    }
+    ranges.push([m.index, m.index + m[0].length])
+    if (ranges.length >= 200) break
+  }
+  return ranges
+}
+
+export type LogLevel = 'error' | 'warn' | null
+
+// 흔한 로거 표기(uvicorn/pino/log4j/파이썬 traceback 등)에서 레벨 추정
+const ERROR_RE = /(^|[^A-Za-z])(ERROR|ERR!?|FATAL|CRITICAL|EXCEPTION|TRACEBACK|PANIC)([^A-Za-z]|$)/i
+const WARN_RE = /(^|[^A-Za-z])(WARN|WARNING)([^A-Za-z]|$)/i
+
+const levelCache = new WeakMap<LogLine, LogLevel>()
+export function levelOf(line: LogLine): LogLevel {
+  let lv = levelCache.get(line)
+  if (lv === undefined) {
+    const t = textOf(line)
+    lv = ERROR_RE.test(t) ? 'error' : WARN_RE.test(t) ? 'warn' : null
+    levelCache.set(line, lv)
+  }
+  return lv
+}
+
 export type Piece = AnsiSegment & { hl?: boolean }
 
 // 검색 매치 구간(ranges, stripped 텍스트 기준 인덱스)에 걸치는 세그먼트를
