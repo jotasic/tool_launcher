@@ -1,9 +1,11 @@
-import { Tray, Menu, app, nativeImage, type BrowserWindow } from 'electron'
+import { Tray, Menu, app, nativeImage } from 'electron'
 import { join } from 'node:path'
 import type { AppContext } from './app-context'
 import { startProgramWithPull } from './start-program'
 
-export function setupTray(win: BrowserWindow, ctx: AppContext): Tray {
+// 창 객체를 직접 잡아두지 않는다: 파괴된 창에 show()를 부르면 main이 죽는다.
+// 대신 호출 시점에 살아있는 창을 보여주는(없으면 새로 만드는) 콜백을 받는다.
+export function setupTray(showWindow: () => void, ctx: AppContext): Tray {
   const raw = nativeImage.createFromPath(join(__dirname, '../../resources/tray-icon.png'))
   const icon = raw.resize({ width: 16, height: 16 })
   const tray = new Tray(icon)
@@ -28,7 +30,7 @@ export function setupTray(win: BrowserWindow, ctx: AppContext): Tray {
       }
     })
     const menu = Menu.buildFromTemplate([
-      { label: '창 열기', click: () => win.show() },
+      { label: '창 열기', click: () => showWindow() },
       { label: `실행 중: ${runningCount}/${programs.length}개`, enabled: false },
       { type: 'separator' },
       ...programItems,
@@ -41,6 +43,6 @@ export function setupTray(win: BrowserWindow, ctx: AppContext): Tray {
   rebuild()
   ctx.processes.onRuntimeChange(rebuild)
   ctx.programsChanged.add(rebuild)
-  tray.on('click', () => win.show())
+  tray.on('click', () => showWindow())
   return tray
 }

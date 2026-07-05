@@ -4,10 +4,18 @@ import type { AppContext } from '../app-context'
 import { startProgramWithPull } from '../start-program'
 import type { Program } from '../../shared/types'
 
-export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContext): void {
+export function registerIpc(
+  ipcMain: IpcMain,
+  getWin: () => BrowserWindow | null,
+  ctx: AppContext
+): void {
   const { store, processes, logs, git } = ctx
   const notifyProgramsChanged = (): void => {
     for (const cb of ctx.programsChanged) cb()
+  }
+  // 창은 파괴/재생성될 수 있다 — 보낼 때마다 살아있는 창을 다시 조회한다.
+  const send = (channel: string, payload: unknown): void => {
+    getWin()?.webContents.send(channel, payload)
   }
 
   ipcMain.handle('programs:list', () => store.listPrograms())
@@ -68,7 +76,8 @@ export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContex
     const updated = store.setSettings(s)
     logs.setFileLogging(updated.logToFile)
     logs.setMaxLines(updated.logBufferLines)
-    if (process.platform !== 'linux') {
+    // dev 바이너리는 OS가 로그인 아이템 등록을 거부한다 — 패키징된 앱에서만
+    if (app.isPackaged && process.platform !== 'linux') {
       app.setLoginItemSettings({ openAtLogin: updated.launchAtLogin })
     }
     return updated
@@ -77,23 +86,20 @@ export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContex
   ipcMain.handle(
     'git:clone',
     async (_e, req: { repoUrl: string; branch?: string; targetDir: string }) => {
-      await git.clone(req, (line) => {
-        if (!win.isDestroyed()) win.webContents.send('git:progress', { text: line })
-      })
+      await git.clone(req, (line) => send('git:progress', { text: line }))
     }
   )
 
   ipcMain.handle('dialog:pickDirectory', async () => {
-    const res = await dialog.showOpenDialog(win, { properties: ['openDirectory'] })
+    const win = getWin()
+    const res = win
+      ? await dialog.showOpenDialog(win, { properties: ['openDirectory'] })
+      : await dialog.showOpenDialog({ properties: ['openDirectory'] })
     return res.canceled ? null : res.filePaths[0]
   })
 
-  processes.onRuntimeChange((rt) => {
-    if (!win.isDestroyed()) win.webContents.send('runtime:changed', rt)
-  })
-  logs.subscribe((lines) => {
-    if (!win.isDestroyed()) win.webContents.send('logs:appended', lines)
-  })
+  processes.onRuntimeChange((rt) => send('runtime:changed', rt))
+  logs.subscribe((lines) => send('logs:appended', lines))
   processes.onOpenRequested(async (_id, target) => {
     if (/^https?:\/\//.test(target)) await shell.openExternal(target)
     else await shell.openPath(target)
