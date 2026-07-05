@@ -31,14 +31,17 @@ export const programSchema = z.object({
   workingDir: z.string().min(1),
   git: gitSpecSchema.optional(),
   processes: z.array(processSpecSchema).min(1),
-  open: openSpecSchema.optional()
+  open: openSpecSchema.optional(),
+  autoRestart: z.boolean().optional(),
+  autoStartOnLaunch: z.boolean().optional()
 })
 
 export const settingsSchema = z.object({
   logBufferLines: z.number().int().positive().default(DEFAULT_SETTINGS.logBufferLines),
   logToFile: z.boolean().default(DEFAULT_SETTINGS.logToFile),
   defaultLogPattern: z.string().default(DEFAULT_SETTINGS.defaultLogPattern),
-  theme: z.enum(['light', 'dark', 'system']).default(DEFAULT_SETTINGS.theme)
+  theme: z.enum(['light', 'dark', 'system']).default(DEFAULT_SETTINGS.theme),
+  launchAtLogin: z.boolean().default(DEFAULT_SETTINGS.launchAtLogin)
 })
 
 export function parseProgram(data: unknown): Program {

@@ -1,43 +1,50 @@
 import type { BrowserWindow, IpcMain } from 'electron'
-import { shell, dialog } from 'electron'
+import { app, shell, dialog } from 'electron'
 import type { AppContext } from '../app-context'
+import { startProgramWithPull } from '../start-program'
 import type { Program } from '../../shared/types'
 
 export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContext): void {
   const { store, processes, logs, git } = ctx
+  const notifyProgramsChanged = (): void => {
+    for (const cb of ctx.programsChanged) cb()
+  }
 
   ipcMain.handle('programs:list', () => store.listPrograms())
-  ipcMain.handle('programs:create', (_e, p: Omit<Program, 'id'>) => store.createProgram(p))
-  ipcMain.handle('programs:update', (_e, p: Program) => store.updateProgram(p))
+  ipcMain.handle('programs:create', (_e, p: Omit<Program, 'id'>) => {
+    const created = store.createProgram(p)
+    notifyProgramsChanged()
+    return created
+  })
+  ipcMain.handle('programs:update', (_e, p: Program) => {
+    const updated = store.updateProgram(p)
+    notifyProgramsChanged()
+    return updated
+  })
   ipcMain.handle('programs:delete', async (_e, id: string) => {
     // Deleting a running program must not leave its processes running as orphans.
     await processes.dispose(id)
     logs.clear(id)
     store.deleteProgram(id)
+    notifyProgramsChanged()
   })
-  ipcMain.handle('programs:import', (_e, json: string) => store.importPrograms(json))
+  ipcMain.handle('programs:import', (_e, json: string) => {
+    const imported = store.importPrograms(json)
+    notifyProgramsChanged()
+    return imported
+  })
   ipcMain.handle('programs:export', () => store.exportPrograms())
 
   ipcMain.handle('programs:start', async (_e, id: string) => {
     const program = store.listPrograms().find((p) => p.id === id)
-    if (!program) return
-    if (program.git?.autoPullOnStart) {
-      // Surface pull output in the program's own log panel ('git:progress' is
-      // only listened to while the clone dialog is open, so it was invisible here).
-      const sys = (text: string): void =>
-        logs.append({ programId: id, processName: 'git', stream: 'system', text, ts: Date.now() })
-      sys('git pull 실행 중...')
-      try {
-        await git.pull(program.workingDir, sys)
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        sys(`git pull 실패: ${msg} — 무시하고 시작합니다`)
-      }
-    }
-    await processes.start(program)
+    if (program) await startProgramWithPull(ctx, program)
   })
   ipcMain.handle('programs:stop', async (_e, id: string) => {
     await processes.stop(id)
+  })
+  ipcMain.handle('programs:restart', async (_e, id: string) => {
+    const program = store.listPrograms().find((p) => p.id === id)
+    if (program) await processes.restart(program)
   })
   ipcMain.handle('programs:open', async (_e, id: string) => {
     const target = processes.getRuntime(id).resolvedOpenTarget
@@ -61,6 +68,9 @@ export function registerIpc(ipcMain: IpcMain, win: BrowserWindow, ctx: AppContex
     const updated = store.setSettings(s)
     logs.setFileLogging(updated.logToFile)
     logs.setMaxLines(updated.logBufferLines)
+    if (process.platform !== 'linux') {
+      app.setLoginItemSettings({ openAtLogin: updated.launchAtLogin })
+    }
     return updated
   })
 

@@ -33,7 +33,12 @@ const programs = [
 ]
 
 const runtimes = [
-  { programId: 'p1', status: 'running', resolvedOpenTarget: 'http://localhost:5173' },
+  {
+    programId: 'p1',
+    status: 'running',
+    resolvedOpenTarget: 'http://localhost:5173',
+    startedAt: Date.now() - 3 * 3600 * 1000 - 25 * 60 * 1000 // 3시간 25분 전
+  },
   { programId: 'p2', status: 'stopped' },
   { programId: 'p3', status: 'error', error: 'process worker failed to start: spawn pythn ENOENT' }
 ]

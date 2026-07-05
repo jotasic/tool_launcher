@@ -44,7 +44,17 @@ interface ProgramState {
   procs: RunningProc[]
   open?: OpenSpec
   openDone?: boolean
+  /** running이 된 시각 — 업타임 표시 + 자동 재시작 카운터 리셋(min-uptime) 판단 */
+  startedAt?: number
+  /** 자동 재시작 누적 횟수 (수동 시작 시 0으로) */
+  restartCount: number
+  /** start/stop마다 증가 — 대기 중인 자동 재시작이 낡았는지 판별 */
+  gen: number
 }
+
+// PM2의 max-restarts / min-uptime과 같은 개념
+const MAX_AUTO_RESTARTS = 5
+const STABLE_UPTIME_MS = 60_000
 
 export class ProcessManager {
   private states = new Map<string, ProgramState>()
@@ -67,7 +77,8 @@ export class ProcessManager {
       programId,
       status: st?.status ?? 'stopped',
       error: st?.error,
-      resolvedOpenTarget: st?.resolvedOpenTarget
+      resolvedOpenTarget: st?.resolvedOpenTarget,
+      startedAt: st?.status === 'running' ? st.startedAt : undefined
     }
   }
 
@@ -136,7 +147,7 @@ export class ProcessManager {
     }
   }
 
-  async start(program: Program): Promise<void> {
+  async start(program: Program, opts?: { restartCount?: number }): Promise<void> {
     // Never spawn a second copy: ignore double-starts, and when restarting
     // after a crash (status 'error') kill whatever survived from the last run
     // first so processes don't leak as orphans.
@@ -149,7 +160,9 @@ export class ProcessManager {
       status: 'starting',
       procs: [],
       open: program.open,
-      resolvedOpenTarget: staticTarget
+      resolvedOpenTarget: staticTarget,
+      restartCount: opts?.restartCount ?? 0,
+      gen: (this.states.get(program.id)?.gen ?? prev?.gen ?? 0) + 1
     }
     this.states.set(program.id, st)
     this.setStatus(program.id, {})
@@ -172,12 +185,10 @@ export class ProcessManager {
         const running: RunningProc = { spec, child, stopping: false }
         child.on('exit', (code) => {
           running.exited = true
-          if (!running.stopping) {
-            this.setStatus(program.id, {
-              status: 'error',
-              error: `process ${spec.name} exited unexpectedly (code ${code})`
-            })
-          }
+          if (running.stopping) return
+          const reason = `process ${spec.name} exited unexpectedly (code ${code})`
+          if (program.autoRestart) void this.scheduleAutoRestart(program, reason)
+          else this.setStatus(program.id, { status: 'error', error: reason })
         })
         // spawn failure (e.g. command typo -> ENOENT) emits 'error' and never
         // 'exit' — without this the program would sit in 'starting' forever.
@@ -194,15 +205,62 @@ export class ProcessManager {
           await this.deps.delay(spec.startDelayMs)
         }
       }
-      if (st.status === 'starting') this.setStatus(program.id, { status: 'running' })
+      if (st.status === 'starting') {
+        this.setStatus(program.id, { status: 'running', startedAt: this.deps.now() })
+      }
     } catch (err) {
       this.setStatus(program.id, { status: 'error', error: (err as Error).message })
     }
   }
 
+  /**
+   * 크래시 후 자동 재시작 (PM2 스타일): 지수 백오프(1s→2s→…max 15s), 최대
+   * 5회. 60초 이상 안정적으로 돌았다면 새 장애로 보고 카운터를 리셋한다.
+   * 대기 중 사용자가 시작/정지를 누르면(gen 변화) 조용히 물러난다.
+   */
+  private async scheduleAutoRestart(program: Program, reason: string): Promise<void> {
+    const st = this.states.get(program.id)
+    if (!st || st.status === 'stopped') return
+    if (st.startedAt !== undefined && this.deps.now() - st.startedAt >= STABLE_UPTIME_MS) {
+      st.restartCount = 0
+    }
+    if (st.restartCount >= MAX_AUTO_RESTARTS) {
+      this.setStatus(program.id, {
+        status: 'error',
+        error: `${reason} — 자동 재시작 ${MAX_AUTO_RESTARTS}회 초과, 중단`
+      })
+      return
+    }
+    st.restartCount++
+    const attempt = st.restartCount
+    const delayMs = Math.min(1000 * 2 ** (attempt - 1), 15_000)
+    this.log(
+      program.id,
+      'system',
+      'system',
+      `${reason} — ${delayMs / 1000}초 후 자동 재시작 (${attempt}/${MAX_AUTO_RESTARTS})`
+    )
+    this.setStatus(program.id, {
+      status: 'error',
+      error: `자동 재시작 대기 중 (${attempt}/${MAX_AUTO_RESTARTS})`
+    })
+    const gen = st.gen
+    await this.deps.delay(delayMs)
+    const cur = this.states.get(program.id)
+    if (!cur || cur.gen !== gen || cur.status === 'stopped') return // 수동 조작이 우선
+    await this.start(program, { restartCount: attempt })
+  }
+
+  /** 정지 후 재시작 (Docker Desktop의 restart 버튼과 동일). */
+  async restart(program: Program): Promise<void> {
+    await this.stop(program.id)
+    await this.start(program)
+  }
+
   async stop(programId: string): Promise<void> {
     const st = this.states.get(programId)
     if (!st || st.status === 'stopped') return
+    st.gen++ // 대기 중인 자동 재시작 무효화
     const reversed = [...st.procs].reverse()
     for (const rp of reversed) {
       rp.stopping = true

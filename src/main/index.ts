@@ -1,10 +1,12 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { createAppContext } from './app-context'
 import type { AppContext } from './app-context'
 import { registerIpc } from './ipc/register-ipc'
+import { startProgramWithPull } from './start-program'
 import { setupTray } from './tray'
 
 // AppContext singleton — created once, shared across tray / IPC / before-quit
@@ -18,11 +20,28 @@ function getAppContext(): AppContext {
   return appCtx
 }
 
+// 창 크기·위치 기억: 마지막 상태를 저장해 다음 실행 때 복원한다.
+function windowStateFile(): string {
+  return join(app.getPath('userData'), 'window-state.json')
+}
+
+function loadWindowState(): { width: number; height: number; x?: number; y?: number } {
+  const fallback = { width: 900, height: 670 }
+  try {
+    const raw = JSON.parse(readFileSync(windowStateFile(), 'utf-8')) as Record<string, unknown>
+    if (typeof raw.width === 'number' && typeof raw.height === 'number') {
+      return { ...fallback, ...raw } as ReturnType<typeof loadWindowState>
+    }
+  } catch {
+    // 첫 실행이거나 파일이 깨졌으면 기본값
+  }
+  return fallback
+}
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    ...loadWindowState(),
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
@@ -37,6 +56,20 @@ function createWindow(): void {
   const ctx = getAppContext()
   registerIpc(ipcMain, mainWindow, ctx)
   setupTray(mainWindow, ctx)
+
+  let saveTimer: ReturnType<typeof setTimeout> | null = null
+  const saveBounds = (): void => {
+    if (saveTimer) clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => {
+      try {
+        writeFileSync(windowStateFile(), JSON.stringify(mainWindow.getBounds()), 'utf-8')
+      } catch {
+        // 저장 실패해도 동작에는 지장 없음
+      }
+    }, 500)
+  }
+  mainWindow.on('resize', saveBounds)
+  mainWindow.on('move', saveBounds)
 
   mainWindow.on('close', (e) => {
     if (!isQuitting) {
@@ -79,6 +112,25 @@ app.whenReady().then(() => {
   })
 
   createWindow()
+
+  const ctx = getAppContext()
+
+  // 저장된 설정과 OS 로그인 아이템 상태 동기화
+  if (process.platform !== 'linux') {
+    app.setLoginItemSettings({ openAtLogin: ctx.store.getSettings().launchAtLogin })
+  }
+
+  // '런처 시작 시 자동 시작' 프로그램들을 순서대로 켠다 (실패해도 나머지 진행)
+  void (async () => {
+    for (const p of ctx.store.listPrograms()) {
+      if (!p.autoStartOnLaunch) continue
+      try {
+        await startProgramWithPull(ctx, p)
+      } catch {
+        // 개별 프로그램 시작 실패는 런타임 상태(error)로 표시된다
+      }
+    }
+  })()
 
   app.on('activate', function () {
     // On macOS re-show the existing window when dock icon is clicked.

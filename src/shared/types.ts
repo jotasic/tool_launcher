@@ -32,6 +32,10 @@ export interface Program {
   git?: GitSpec
   processes: ProcessSpec[]
   open?: OpenSpec
+  /** 크래시 시 자동 재시작 (지수 백오프, 최대 5회 — 60초 이상 살아있으면 카운터 리셋) */
+  autoRestart?: boolean
+  /** 런처가 켜질 때 이 프로그램도 자동 시작 */
+  autoStartOnLaunch?: boolean
 }
 
 export type ProgramStatus = 'stopped' | 'starting' | 'running' | 'error'
@@ -41,6 +45,8 @@ export interface ProgramRuntime {
   status: ProgramStatus
   resolvedOpenTarget?: string
   error?: string
+  /** running 상태가 된 시각 (업타임 표시용) */
+  startedAt?: number
 }
 
 export interface LogLine {
@@ -56,11 +62,14 @@ export interface Settings {
   logToFile: boolean
   defaultLogPattern: string
   theme: 'light' | 'dark' | 'system'
+  /** OS 로그인 시 런처 자동 실행 */
+  launchAtLogin: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   logBufferLines: 2000,
   logToFile: false,
   defaultLogPattern: 'https?://[^\\s]+',
-  theme: 'system'
+  theme: 'system',
+  launchAtLogin: false
 }

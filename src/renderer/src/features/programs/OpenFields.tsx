@@ -16,7 +16,7 @@ export function OpenFields({
     <div className="space-y-2 rounded border p-3">
       <Label>열기 동작</Label>
       <select
-        className="w-full rounded border p-2"
+        className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm text-foreground"
         value={value.mode}
         onChange={(e) => onChange({ ...value, mode: e.target.value as OpenMode })}
       >
@@ -40,7 +40,7 @@ export function OpenFields({
               URL을 찾을 프로세스 (백엔드 URL이 잘못 잡히는 걸 방지)
             </div>
             <select
-              className="w-full rounded border p-2"
+              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm text-foreground"
               value={value.logProcessName ?? ''}
               onChange={(e) => onChange({ ...value, logProcessName: e.target.value || undefined })}
             >

@@ -132,6 +132,34 @@ describe('ProcessManager restart safety', () => {
     expect(pm.getRuntime('a').status).toBe('stopped')
   })
 
+  it('restart() stops then starts fresh processes', async () => {
+    const { deps, children } = makeFakeDeps()
+    const killed: number[] = []
+    deps.killTree = async (pid, sig) => {
+      killed.push(pid)
+      children.find((c) => c.pid === pid)?.emitExit(0, sig)
+    }
+    const pm = new ProcessManager(new LogStore(100), deps, { stopGraceMs: 20 })
+    await pm.start(prog())
+    await pm.restart(prog())
+    expect(killed).toContain(children[0]!.pid)
+    expect(children).toHaveLength(2)
+    expect(pm.getRuntime('a').status).toBe('running')
+  })
+
+  it('exposes startedAt while running (uptime)', async () => {
+    const { deps, children } = makeFakeDeps()
+    deps.now = () => 12345
+    deps.killTree = async (pid, sig) => {
+      children.find((c) => c.pid === pid)?.emitExit(0, sig)
+    }
+    const pm = new ProcessManager(new LogStore(100), deps, { stopGraceMs: 20 })
+    await pm.start(prog())
+    expect(pm.getRuntime('a').startedAt).toBe(12345)
+    await pm.stop('a')
+    expect(pm.getRuntime('a').startedAt).toBeUndefined()
+  })
+
   it('dispose stops processes and forgets the program', async () => {
     const { deps, children } = makeFakeDeps()
     const killed: number[] = []
@@ -242,6 +270,69 @@ describe('ProcessManager open resolution', () => {
     expect(pm.getRuntime('a').resolvedOpenTarget).toBeUndefined()
     children[1]!.emitStdout('Local: http://localhost:5176\n')
     expect(pm.getRuntime('a').resolvedOpenTarget).toBe('http://localhost:5176')
+  })
+})
+
+describe('ProcessManager auto-restart', () => {
+  const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0))
+  const auto = (over: Partial<Program> = {}): Program => prog({ autoRestart: true, ...over })
+
+  it('respawns after an unexpected crash', async () => {
+    const { deps, children } = makeFakeDeps()
+    const logs = new LogStore(100)
+    const pm = new ProcessManager(logs, deps)
+    await pm.start(auto())
+    children[0]!.emitExit(1, null)
+    await flush()
+    expect(children).toHaveLength(2)
+    expect(pm.getRuntime('a').status).toBe('running')
+    expect(logs.get('a').some((l) => l.text.includes('자동 재시작'))).toBe(true)
+  })
+
+  it('gives up after MAX attempts and reports error', async () => {
+    const { deps, children } = makeFakeDeps()
+    const pm = new ProcessManager(new LogStore(100), deps)
+    await pm.start(auto())
+    for (let i = 0; i < 6; i++) {
+      children[children.length - 1]!.emitExit(1, null)
+      await flush()
+    }
+    expect(children).toHaveLength(6) // 최초 1 + 재시작 5
+    expect(pm.getRuntime('a').status).toBe('error')
+    expect(pm.getRuntime('a').error).toContain('5회 초과')
+  })
+
+  it('resets the attempt counter after a stable run (min-uptime)', async () => {
+    const { deps, children } = makeFakeDeps()
+    let t = 0
+    deps.now = () => t
+    const pm = new ProcessManager(new LogStore(100), deps)
+    await pm.start(auto())
+    for (let i = 0; i < 5; i++) {
+      children[children.length - 1]!.emitExit(1, null)
+      await flush()
+    }
+    expect(children).toHaveLength(6) // 카운터 소진 직전
+    t += 120_000 // 이번엔 2분 동안 안정적으로 돌았다
+    children[children.length - 1]!.emitExit(1, null)
+    await flush()
+    expect(children).toHaveLength(7) // 리셋되어 다시 재시작됨
+    expect(pm.getRuntime('a').status).toBe('running')
+  })
+
+  it('manual stop cancels a pending auto-restart', async () => {
+    const { deps, children } = makeFakeDeps()
+    let release: (() => void) | null = null
+    deps.delay = () => new Promise((r) => (release = () => r()))
+    const pm = new ProcessManager(new LogStore(100), deps, { stopGraceMs: 20 })
+    await pm.start(auto())
+    children[0]!.emitExit(1, null) // 재시작 대기 진입
+    await flush()
+    await pm.stop('a')
+    release!()
+    await flush()
+    expect(children).toHaveLength(1) // 재스폰 없음
+    expect(pm.getRuntime('a').status).toBe('stopped')
   })
 })
 

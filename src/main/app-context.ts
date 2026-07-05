@@ -10,6 +10,8 @@ export interface AppContext {
   logs: LogStore
   processes: ProcessManager
   git: GitService
+  /** 프로그램 목록이 바뀔 때(추가/수정/삭제/가져오기) 알림 — 트레이 메뉴 갱신용 */
+  programsChanged: Set<() => void>
 }
 
 export function createAppContext(userDataDir: string): AppContext {
@@ -19,5 +21,5 @@ export function createAppContext(userDataDir: string): AppContext {
   logs.setFileLogging(settings.logToFile)
   const processes = new ProcessManager(logs, createRealDeps())
   const git = new GitService(createGitRunner())
-  return { store, logs, processes, git }
+  return { store, logs, processes, git, programsChanged: new Set() }
 }

@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { ProcessFields } from './ProcessFields'
 import { OpenFields } from './OpenFields'
 import { GitFields } from './GitFields'
@@ -35,6 +36,8 @@ export function ProgramForm({
   )
   const [openSpec, setOpenSpec] = useState<OpenSpec>(existing?.open ?? emptyOpen)
   const [git, setGit] = useState<GitSpec | undefined>(existing?.git)
+  const [autoRestart, setAutoRestart] = useState(existing?.autoRestart ?? false)
+  const [autoStartOnLaunch, setAutoStartOnLaunch] = useState(existing?.autoStartOnLaunch ?? false)
 
   const [cloning, setCloning] = useState(false)
   const [cloneLog, setCloneLog] = useState<string[]>([])
@@ -53,6 +56,8 @@ export function ProgramForm({
       setProcesses(existing?.processes ?? [{ name: 'proc1', command: '', order: 0 }])
       setOpenSpec(existing?.open ?? emptyOpen)
       setGit(existing?.git)
+      setAutoRestart(existing?.autoRestart ?? false)
+      setAutoStartOnLaunch(existing?.autoStartOnLaunch ?? false)
       setSaveError(null)
       /* eslint-enable react-hooks/set-state-in-effect */
     }
@@ -105,6 +110,8 @@ export function ProgramForm({
       workingDir,
       processes: cleanedProcesses,
       open: openSpec,
+      autoRestart,
+      autoStartOnLaunch,
       ...(git ? { git } : {})
     }
     setSaving(true)
@@ -169,6 +176,19 @@ export function ProgramForm({
           <div>
             <Label>프로세스</Label>
             <ProcessFields value={processes} onChange={setProcesses} />
+          </div>
+          <div className="space-y-2 rounded border p-3">
+            <label className="flex items-center gap-2">
+              <Switch checked={autoRestart} onCheckedChange={setAutoRestart} />
+              크래시 시 자동 재시작
+            </label>
+            <p className="text-xs text-muted-foreground">
+              비정상 종료되면 몇 초 간격으로 다시 시작합니다 (최대 5회)
+            </p>
+            <label className="flex items-center gap-2">
+              <Switch checked={autoStartOnLaunch} onCheckedChange={setAutoStartOnLaunch} />
+              런처 시작 시 자동 시작
+            </label>
           </div>
           <OpenFields
             value={openSpec}

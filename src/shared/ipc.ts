@@ -8,6 +8,7 @@ export interface IpcApi {
   'programs:delete': (id: string) => Promise<void>
   'programs:start': (id: string) => Promise<void>
   'programs:stop': (id: string) => Promise<void>
+  'programs:restart': (id: string) => Promise<void>
   'programs:open': (id: string) => Promise<void>
   'programs:import': (json: string) => Promise<Program[]>
   'programs:export': () => Promise<string>
@@ -36,6 +37,7 @@ export const INVOKE_CHANNELS = [
   'programs:delete',
   'programs:start',
   'programs:stop',
+  'programs:restart',
   'programs:open',
   'programs:import',
   'programs:export',

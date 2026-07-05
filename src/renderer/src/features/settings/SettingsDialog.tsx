@@ -139,6 +139,18 @@ export function SettingsDialog({ trigger }: { trigger: React.ReactNode }) {
               로그 파일 저장
             </label>
             <div>
+              <label className="flex items-center gap-2">
+                <Switch
+                  checked={settings.launchAtLogin}
+                  onCheckedChange={(c) => save({ ...settings, launchAtLogin: c })}
+                />
+                로그인 시 자동 실행
+              </label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                컴퓨터에 로그인하면 Tool Launcher가 자동으로 켜집니다 (macOS/Windows)
+              </p>
+            </div>
+            <div>
               <Label>기본 로그 URL 정규식</Label>
               <Input
                 value={patternDraft}
