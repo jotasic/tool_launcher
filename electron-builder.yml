@@ -42,3 +42,5 @@ appImage:
 npmRebuild: false
 publish:
   provider: github
+  # 태그로 발행한 릴리즈에 설치 파일을 바로 첨부 (기본값 draft는 발행된 릴리즈를 조용히 스킵)
+  releaseType: release
