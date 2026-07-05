@@ -1,4 +1,4 @@
-import type { Program, ProgramRuntime, LogLine, Settings } from './types'
+import type { Program, ProgramRuntime, LogLine, Settings, UpdateInfo } from './types'
 
 // invoke: renderer가 호출하고 main이 응답(Promise)
 export interface IpcApi {
@@ -21,6 +21,10 @@ export interface IpcApi {
   'settings:set': (s: Settings) => Promise<Settings>
   'dialog:pickDirectory': () => Promise<string | null>
   'git:clone': (req: { repoUrl: string; branch?: string; targetDir: string }) => Promise<void>
+  /** GitHub 최신 릴리즈 확인 (실패 시 null) */
+  'update:check': () => Promise<UpdateInfo | null>
+  /** 릴리즈 페이지 열기 (github.com URL만 허용) */
+  'update:openDownload': (url: string) => Promise<void>
 }
 
 // event: main이 renderer로 푸시
@@ -48,7 +52,9 @@ export const INVOKE_CHANNELS = [
   'settings:get',
   'settings:set',
   'dialog:pickDirectory',
-  'git:clone'
+  'git:clone',
+  'update:check',
+  'update:openDownload'
 ] as const satisfies ReadonlyArray<keyof IpcApi>
 
 export const EVENT_CHANNELS = [

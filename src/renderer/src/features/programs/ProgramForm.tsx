@@ -10,14 +10,27 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { ProcessFields } from './ProcessFields'
+import { ProcessFields, type ProcDraft } from './ProcessFields'
 import { OpenFields } from './OpenFields'
 import { GitFields } from './GitFields'
 import { useProgramsStore } from '../../stores/programs'
 import { ipc } from '../../lib/ipc'
-import type { Program, OpenSpec, GitSpec } from '../../../../shared/types'
+import type { Program, OpenSpec, GitSpec, ProcessSpec } from '../../../../shared/types'
 
 const emptyOpen: OpenSpec = { mode: 'none', autoOpenOnStart: false }
+
+/** Build the editable draft list from saved processes: env is flattened into
+ * `envText` for the textarea (see submit() for the reverse parse on save). */
+function toDrafts(processes: ProcessSpec[]): ProcDraft[] {
+  return processes.map((p) => ({
+    ...p,
+    envText: p.env
+      ? Object.entries(p.env)
+          .map(([k, v]) => `${k}=${v}`)
+          .join('\n')
+      : undefined
+  }))
+}
 
 export function ProgramForm({
   existing,
@@ -31,8 +44,8 @@ export function ProgramForm({
   const [open, setOpen] = useState(false)
   const [name, setName] = useState(existing?.name ?? '')
   const [workingDir, setWorkingDir] = useState(existing?.workingDir ?? '')
-  const [processes, setProcesses] = useState(
-    existing?.processes ?? [{ name: 'proc1', command: '', order: 0 }]
+  const [processes, setProcesses] = useState<ProcDraft[]>(
+    existing ? toDrafts(existing.processes) : [{ name: 'proc1', command: '', order: 0 }]
   )
   const [openSpec, setOpenSpec] = useState<OpenSpec>(existing?.open ?? emptyOpen)
   const [git, setGit] = useState<GitSpec | undefined>(existing?.git)
@@ -53,7 +66,9 @@ export function ProgramForm({
       /* eslint-disable react-hooks/set-state-in-effect */
       setName(existing?.name ?? '')
       setWorkingDir(existing?.workingDir ?? '')
-      setProcesses(existing?.processes ?? [{ name: 'proc1', command: '', order: 0 }])
+      setProcesses(
+        existing ? toDrafts(existing.processes) : [{ name: 'proc1', command: '', order: 0 }]
+      )
       setOpenSpec(existing?.open ?? emptyOpen)
       setGit(existing?.git)
       setAutoRestart(existing?.autoRestart ?? false)
@@ -101,9 +116,28 @@ export function ProgramForm({
   const submit = async () => {
     // Args are stored split-on-space while typing (so spaces type correctly);
     // drop empty tokens (from double/trailing spaces) only here, at save time.
-    const cleanedProcesses = processes.map((p) => {
+    // Same idea for env: it's edited as raw `envText` while typing, and only
+    // parsed into a KEY -> value map here, at save time.
+    const cleanedProcesses: ProcessSpec[] = processes.map(({ envText, ...p }) => {
       const args = (p.args ?? []).filter((a) => a.length > 0)
-      return { ...p, args: args.length > 0 ? args : undefined }
+      const envEntries = (envText ?? '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .filter((line) => line.includes('='))
+        .map((line): [string, string] => {
+          const eq = line.indexOf('=')
+          return [line.slice(0, eq), line.slice(eq + 1)]
+        })
+        .filter(([key]) => key.length > 0)
+      const startDelayMs =
+        typeof p.startDelayMs === 'number' && p.startDelayMs > 0 ? p.startDelayMs : undefined
+      return {
+        ...p,
+        args: args.length > 0 ? args : undefined,
+        env: envEntries.length > 0 ? Object.fromEntries(envEntries) : undefined,
+        startDelayMs
+      }
     })
     const payload: Omit<Program, 'id'> = {
       name,

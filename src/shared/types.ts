@@ -57,6 +57,13 @@ export interface LogLine {
   ts: number
 }
 
+export interface UpdateInfo {
+  current: string
+  latest: string
+  url: string
+  hasUpdate: boolean
+}
+
 export interface Settings {
   logBufferLines: number
   logToFile: boolean

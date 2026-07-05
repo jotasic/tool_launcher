@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, Notification } from 'electron'
 import { join } from 'path'
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -165,6 +165,16 @@ if (!gotLock) {
     if (!is.dev && process.platform !== 'linux') {
       app.setLoginItemSettings({ openAtLogin: ctx.store.getSettings().launchAtLogin })
     }
+
+    // 크래시(재시작 포기 포함) OS 알림 — 트레이 상주 앱이라 화면을 안 보고
+    // 있어도 프로그램이 죽은 걸 알 수 있어야 한다. 클릭하면 창을 연다.
+    ctx.processes.onCrash((programId, reason) => {
+      if (!Notification.isSupported()) return
+      const name = ctx.store.listPrograms().find((p) => p.id === programId)?.name ?? programId
+      const n = new Notification({ title: `${name} 중단됨`, body: reason })
+      n.on('click', () => showWindow())
+      n.show()
+    })
 
     // '런처 시작 시 자동 시작' 프로그램들을 순서대로 켠다 (실패해도 나머지 진행)
     void (async () => {

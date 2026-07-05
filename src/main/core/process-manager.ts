@@ -92,6 +92,16 @@ export class ProcessManager {
     this.openListeners.add(cb)
     return () => this.openListeners.delete(cb)
   }
+
+  // 최종 실패(재시작 안 함/포기)만 알린다 — 자동 재시작 시도 중엔 조용히.
+  private crashListeners = new Set<(programId: string, reason: string) => void>()
+  onCrash(cb: (programId: string, reason: string) => void): () => void {
+    this.crashListeners.add(cb)
+    return () => this.crashListeners.delete(cb)
+  }
+  private emitCrash(programId: string, reason: string): void {
+    for (const cb of this.crashListeners) cb(programId, reason)
+  }
   private requestOpen(programId: string, target: string): void {
     const st = this.states.get(programId)
     if (!st || st.openDone) return
@@ -187,18 +197,21 @@ export class ProcessManager {
           running.exited = true
           if (running.stopping) return
           const reason = `process ${spec.name} exited unexpectedly (code ${code})`
-          if (program.autoRestart) void this.scheduleAutoRestart(program, reason)
-          else this.setStatus(program.id, { status: 'error', error: reason })
+          if (program.autoRestart) {
+            void this.scheduleAutoRestart(program, reason)
+          } else {
+            this.setStatus(program.id, { status: 'error', error: reason })
+            this.emitCrash(program.id, reason)
+          }
         })
         // spawn failure (e.g. command typo -> ENOENT) emits 'error' and never
         // 'exit' — without this the program would sit in 'starting' forever.
         child.on('error', (err) => {
           running.exited = true
           this.log(program.id, spec.name, 'system', `실행 실패: ${err.message}`)
-          this.setStatus(program.id, {
-            status: 'error',
-            error: `process ${spec.name} failed to start: ${err.message}`
-          })
+          const reason = `process ${spec.name} failed to start: ${err.message}`
+          this.setStatus(program.id, { status: 'error', error: reason })
+          this.emitCrash(program.id, reason)
         })
         st.procs.push(running)
         if (spec.startDelayMs && spec.startDelayMs > 0) {
@@ -225,10 +238,9 @@ export class ProcessManager {
       st.restartCount = 0
     }
     if (st.restartCount >= MAX_AUTO_RESTARTS) {
-      this.setStatus(program.id, {
-        status: 'error',
-        error: `${reason} — 자동 재시작 ${MAX_AUTO_RESTARTS}회 초과, 중단`
-      })
+      const giveUp = `${reason} — 자동 재시작 ${MAX_AUTO_RESTARTS}회 초과, 중단`
+      this.setStatus(program.id, { status: 'error', error: giveUp })
+      this.emitCrash(program.id, giveUp)
       return
     }
     st.restartCount++

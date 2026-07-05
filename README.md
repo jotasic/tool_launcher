@@ -5,6 +5,18 @@
 "열기"까지 하는 크로스 플랫폼(macOS/Windows/Linux) 설치형 런처. `git clone`은 프로그램
 폴더를 채우는 보조 기능.
 
+| 프로그램 목록 (다크)                         | 실시간 로그 (ANSI 컬러)                      |
+| -------------------------------------------- | -------------------------------------------- |
+| ![메인 화면](docs/screenshots/main-dark.png) | ![로그 뷰어](docs/screenshots/logs-dark.png) |
+
+**다운로드**: [Releases](https://github.com/jotasic/tool_launcher/releases/latest) — macOS(dmg) · Windows(exe) · Linux(AppImage/deb)
+
+<details><summary>라이트 테마 스크린샷</summary>
+
+![라이트 테마](docs/screenshots/main-light.png)
+
+</details>
+
 ## 기술 스택
 
 Electron · TypeScript · React · Tailwind + shadcn/ui · Zustand · Vitest · electron-builder

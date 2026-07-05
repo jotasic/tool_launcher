@@ -2,6 +2,7 @@ import type { BrowserWindow, IpcMain } from 'electron'
 import { app, shell, dialog } from 'electron'
 import type { AppContext } from '../app-context'
 import { startProgramWithPull } from '../start-program'
+import { checkForUpdate } from '../core/update-check'
 import type { Program } from '../../shared/types'
 
 export function registerIpc(
@@ -89,6 +90,11 @@ export function registerIpc(
       await git.clone(req, (line) => send('git:progress', { text: line }))
     }
   )
+
+  ipcMain.handle('update:check', () => checkForUpdate(app.getVersion()))
+  ipcMain.handle('update:openDownload', async (_e, url: string) => {
+    if (/^https:\/\/github\.com\//.test(url)) await shell.openExternal(url)
+  })
 
   ipcMain.handle('dialog:pickDirectory', async () => {
     const win = getWin()

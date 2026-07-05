@@ -320,6 +320,28 @@ describe('ProcessManager auto-restart', () => {
     expect(pm.getRuntime('a').status).toBe('running')
   })
 
+  it('emits onCrash immediately when autoRestart is off, only on give-up when on', async () => {
+    const { deps, children } = makeFakeDeps()
+    const pm = new ProcessManager(new LogStore(100), deps)
+    const crashes: string[] = []
+    pm.onCrash((_id, reason) => crashes.push(reason))
+
+    // autoRestart 꺼짐: 즉시 알림
+    await pm.start(prog())
+    children[0]!.emitExit(1, null)
+    await flush()
+    expect(crashes).toHaveLength(1)
+
+    // autoRestart 켜짐: 재시도 중엔 조용, 5회 소진 시 1번만
+    await pm.start(auto({ id: 'b', processes: [{ name: 'p', command: 'x', order: 0 }] }))
+    for (let i = 0; i < 6; i++) {
+      children[children.length - 1]!.emitExit(1, null)
+      await flush()
+    }
+    expect(crashes).toHaveLength(2)
+    expect(crashes[1]).toContain('초과')
+  })
+
   it('manual stop cancels a pending auto-restart', async () => {
     const { deps, children } = makeFakeDeps()
     let release: (() => void) | null = null
